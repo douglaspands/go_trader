@@ -9,7 +9,7 @@
 
 ## Download
 
-Existem versões para Windows e Linux: [Trader/Releases](https://github.com/douglaspands/go_trader/releases)
+Existem versões para Windows, Linux e Mac: [Trader/Releases](https://github.com/douglaspands/go_trader/releases)
 
 ## Uso
 
