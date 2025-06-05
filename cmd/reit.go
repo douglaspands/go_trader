@@ -56,8 +56,9 @@ var reitListReitsByTickersCmd = &cobra.Command{
 		}
 		t.SetColumnConfigs([]table.ColumnConfig{
 			{
-				Name:  "PRICE",
-				Align: text.AlignRight,
+				Name:        "PRICE",
+				AlignHeader: text.AlignRight,
+				Align:       text.AlignRight,
 			},
 		})
 		t.Render()
