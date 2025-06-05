@@ -21,7 +21,7 @@ func StructToTableHeader(s interface{}, ignore []string) table.Row {
 		for i := 0; i < v.NumField(); i++ {
 			field := t.Field(i)
 			if !slices.Contains(ignore, field.Name) {
-				header = append(header, strings.ToUpper(ToSnakeCase(field.Name)))
+				header = append(header, strings.ReplaceAll(strings.ToUpper(ToSnakeCase(field.Name)), "_", " "))
 			}
 		}
 	}
