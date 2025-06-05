@@ -1,0 +1,60 @@
+name: Build and Zip Executable
+
+on:
+  release:
+    types: [created]
+
+  workflow_dispatch:
+    inputs:
+      TAG_NAME:
+        description: 'Tag name that the major tag will point to'
+        required: true
+
+env:
+  TAG_NAME: ${{ github.event.inputs.TAG_NAME || github.event.release.tag_name }}
+
+permissions:
+  contents: write
+
+jobs:
+
+  linux-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Generate executable
+      run: |
+        make build
+
+    - name: Zip the executable
+      run: |
+        zip -r ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip ./trader.exe
+        tar -cjvf ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2 ./trader
+
+    - name: Upload Release Asset (Windows)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip
+        asset_name: trader-${{ env.TAG_NAME }}-windows-x86_64.zip
+        asset_content_type: application/zip
+
+    - name: Upload Release Asset (Linux)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
+        asset_name: trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
+        asset_content_type: application/x-bzip
