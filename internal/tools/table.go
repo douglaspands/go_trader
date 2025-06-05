@@ -60,7 +60,7 @@ func StructToTableRowsFieldValue(s interface{}, ignore []string) []table.Row {
 			field := t.Field(i)
 			if !slices.Contains(ignore, field.Name) {
 				fieldValue := v.Field(i)
-				row = append(row, strings.ToUpper(ToSnakeCase(field.Name)), tableRowValue(fieldValue.Interface()))
+				row = append(row, strings.ReplaceAll(strings.ToUpper(ToSnakeCase(field.Name)), "_", " "), tableRowValue(fieldValue.Interface()))
 			}
 			if len(row) > 0 {
 				rows = append(rows, row)
