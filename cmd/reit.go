@@ -31,6 +31,7 @@ var reitGetReitByTickerCmd = &cobra.Command{
 		}
 		t := common.NewTableWriter()
 		t.AppendRows(tools.StructToTableRowsFieldValue(reit, []string{"Description"}))
+		t.SetIndexColumn(1)
 		t.Render()
 	},
 }
@@ -61,6 +62,7 @@ var reitListReitsByTickersCmd = &cobra.Command{
 				Align:       text.AlignRight,
 			},
 		})
+		t.SetIndexColumn(1)
 		t.Render()
 	},
 }

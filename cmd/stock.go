@@ -31,6 +31,7 @@ var stockGetStockByTickerCmd = &cobra.Command{
 		}
 		t := common.NewTableWriter()
 		t.AppendRows(tools.StructToTableRowsFieldValue(stock, []string{"Description"}))
+		t.SetIndexColumn(1)
 		t.Render()
 	},
 }
@@ -61,6 +62,7 @@ var stockListStocksByTickersCmd = &cobra.Command{
 				Align:       text.AlignRight,
 			},
 		})
+		t.SetIndexColumn(1)
 		t.Render()
 	},
 }
