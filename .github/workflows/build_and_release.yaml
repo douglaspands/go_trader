@@ -32,8 +32,8 @@ jobs:
 
     - name: Generate executable
       run: |
-        GOARCH=amd64 GOOS=windows go build -ldflags="-X 'config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader.exe main.go
-        GOARCH=amd64 GOOS=linux go build -ldflags="-X 'config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader main.go
+        GOARCH=amd64 GOOS=windows go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader.exe main.go
+        GOARCH=amd64 GOOS=linux go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader main.go
 
     - name: Zip the executable
       run: |
