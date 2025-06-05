@@ -32,15 +32,43 @@ jobs:
 
     - name: Generate executable
       run: |
-        GOARCH=amd64 GOOS=windows go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader.exe main.go
         GOARCH=amd64 GOOS=linux go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader main.go
 
     - name: Zip the executable
       run: |
-        zip -r ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip ./trader.exe
         tar -cjvf ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2 ./trader
 
-    - name: Upload Release Asset (Windows)
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
+        asset_name: trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
+        asset_content_type: application/x-bzip
+
+  windows-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Generate executable
+      run: |
+        GOARCH=amd64 GOOS=windows go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader.exe main.go
+
+    - name: Zip the executable
+      run: |
+        zip -r ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip ./trader.exe
+
+    - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -50,12 +78,32 @@ jobs:
         asset_name: trader-${{ env.TAG_NAME }}-windows-x86_64.zip
         asset_content_type: application/zip
 
-    - name: Upload Release Asset (Linux)
+  darwin-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Generate executable
+      run: |
+        GOARCH=arm64 GOOS=darwin go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader main.go
+
+    - name: Zip the executable
+      run: |
+        tar -cjvf ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2 ./trader
+
+    - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
-        asset_name: trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
+        asset_path: ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2
+        asset_name: trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2
         asset_content_type: application/x-bzip
