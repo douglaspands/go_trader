@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"trader/internal/config"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +21,16 @@ var rootCmd = &cobra.Command{
 `,
 }
 
+var rootVersionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Show version",
+	Long:  `Show version`,
+	Run: func(cmd *cobra.Command, args []string) {
+		config := config.GetConfig()
+		fmt.Printf("%s\n", config.Version)
+	},
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -26,4 +38,6 @@ func Execute() {
 	}
 }
 
-func init() {}
+func init() {
+	rootCmd.AddCommand(rootVersionCmd)
+}
