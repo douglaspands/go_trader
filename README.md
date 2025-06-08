@@ -39,7 +39,7 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
 ```sh
 # Windows
 .\trader.exe stock list ITSA3 BBDC3 VALE3 ABEV3 PETR4 WEGE3 IGTA3 B3SA3
-# ou
+# Linux/Mac
 ./trader stock list ITSA3 BBDC3 VALE3 ABEV3 PETR4 WEGE3 IGTA3 B3SA3
 
 # Output:
