@@ -5,7 +5,7 @@ import (
 	"trader/internal/scraping"
 )
 
-func GetStock(ticker string) *resource.Stock {
+func GetStock(ticker string) *resource.Security {
 	stock, err := scraping.GetStockByTicker(ticker)
 	if err != nil {
 		return nil
@@ -13,6 +13,6 @@ func GetStock(ticker string) *resource.Stock {
 	return stock
 }
 
-func ListStocks(tickers []string) []*resource.Stock {
+func ListStocks(tickers []string) []*resource.Security {
 	return scraping.ListStocksByTickers(tickers)
 }

@@ -12,9 +12,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-func GetStockByTicker(ticker string) (*resource.Stock, error) {
+func GetStockByTicker(ticker string) (*resource.Security, error) {
 
-	url := fmt.Sprintf("%s/acoes/%s", STOCK_HOST_URL, strings.ToLower(ticker))
+	url := fmt.Sprintf("%s/acoes/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
 	htmlDoc, err := getHtml(url)
 	if err != nil {
 		return nil, err
@@ -52,19 +52,25 @@ func GetStockByTicker(ticker string) (*resource.Stock, error) {
 		description = append(description, strings.TrimSpace(n.Data))
 	}
 
-	return &resource.Stock{
+	return &resource.Security{
 		Ticker:      strings.ToUpper(ticker),
 		Name:        name,
 		Description: strings.TrimSpace(strings.Join(description, " ")),
-		Price:       price,
-		Document:    document,
-		Origin:      url,
-		CapturedAt:  time.Now(),
+		Type:        resource.STOCK_TYPE,
+		Currency: &resource.Currency{
+			Code:        "BRL",
+			Description: "Brazilian Real",
+			Sign:        "R$",
+		},
+		Price:      price,
+		Document:   document,
+		Origin:     url,
+		CapturedAt: time.Now(),
 	}, nil
 }
 
-func ListStocksByTickers(tickers []string) []*resource.Stock {
-	var stocks []*resource.Stock
+func ListStocksByTickers(tickers []string) []*resource.Security {
+	var stocks []*resource.Security
 	for _, ticker := range tickers {
 		stock, err := GetStockByTicker(ticker)
 		if err == nil {

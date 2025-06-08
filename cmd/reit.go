@@ -30,7 +30,17 @@ var reitGetReitByTickerCmd = &cobra.Command{
 			return
 		}
 		t := common.NewTableWriter()
-		t.AppendRows(tools.StructToTableRowsFieldValue(reit, []string{"Description"}))
+		t.AppendHeader(table.Row{"FIELD", "VALUE"})
+		t.AppendRow(table.Row{"Ticker", reit.Ticker})
+		t.AppendRow(table.Row{"Name", reit.Name})
+		t.AppendRow(table.Row{"Admin", reit.Admin})
+		t.AppendRow(table.Row{"Document", reit.Document})
+		t.AppendRow(table.Row{"Segment", reit.Segment})
+		t.AppendRow(table.Row{"Currency", fmt.Sprintf("%s %s", reit.Currency.Code, reit.Currency.Sign)})
+		t.AppendRow(table.Row{"Price", tools.TableRowValue(reit.Price)})
+		t.AppendRow(table.Row{"CapturedAt", tools.TableRowValue(reit.CapturedAt)})
+		t.AppendRow(table.Row{"Origin", reit.Origin})
+		// t.AppendRow(table.Row{"Description", reit.Description})
 		t.SetIndexColumn(1)
 		t.Render()
 	},
@@ -49,12 +59,11 @@ var reitListReitsByTickersCmd = &cobra.Command{
 			return
 		}
 		t := common.NewTableWriter()
-		for idx, reit := range reits {
-			if idx == 0 {
-				t.AppendHeader(tools.StructToTableHeader(reit, []string{"Description", "Origin"}))
-			}
-			t.AppendRow(tools.StructToTableRow(reit, []string{"Description", "Origin"}))
+		t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "CURRENCY", "PRICE", "CAPTURED AT"})
+		for _, reit := range reits {
+			t.AppendRow(table.Row{reit.Ticker, reit.Name, reit.Document, fmt.Sprintf("%s %s", reit.Currency.Code, reit.Currency.Sign), tools.TableRowValue(reit.Price), tools.TableRowValue(reit.CapturedAt)})
 		}
+
 		t.SetColumnConfigs([]table.ColumnConfig{
 			{
 				Name:        "PRICE",

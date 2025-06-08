@@ -40,7 +40,7 @@ func StructToTableRow(s interface{}, ignore []string) table.Row {
 			field := t.Field(i)
 			if !slices.Contains(ignore, field.Name) {
 				fieldValue := v.Field(i)
-				row = append(row, tableRowValue(fieldValue.Interface()))
+				row = append(row, TableRowValue(fieldValue.Interface()))
 			}
 		}
 	}
@@ -60,7 +60,7 @@ func StructToTableRowsFieldValue(s interface{}, ignore []string) []table.Row {
 			field := t.Field(i)
 			if !slices.Contains(ignore, field.Name) {
 				fieldValue := v.Field(i)
-				row = append(row, strings.ReplaceAll(strings.ToUpper(ToSnakeCase(field.Name)), "_", " "), tableRowValue(fieldValue.Interface()))
+				row = append(row, strings.ReplaceAll(strings.ToUpper(ToSnakeCase(field.Name)), "_", " "), TableRowValue(fieldValue.Interface()))
 			}
 			if len(row) > 0 {
 				rows = append(rows, row)
@@ -70,7 +70,7 @@ func StructToTableRowsFieldValue(s interface{}, ignore []string) []table.Row {
 	return rows
 }
 
-func tableRowValue(value interface{}) interface{} {
+func TableRowValue(value interface{}) interface{} {
 	var result interface{}
 	switch v := value.(type) {
 	case time.Time:

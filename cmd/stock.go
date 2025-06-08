@@ -30,7 +30,15 @@ var stockGetStockByTickerCmd = &cobra.Command{
 			return
 		}
 		t := common.NewTableWriter()
-		t.AppendRows(tools.StructToTableRowsFieldValue(stock, []string{"Description"}))
+		t.AppendHeader(table.Row{"FIELD", "VALUE"})
+		t.AppendRow(table.Row{"Ticker", stock.Ticker})
+		t.AppendRow(table.Row{"Name", stock.Name})
+		t.AppendRow(table.Row{"Document", stock.Document})
+		t.AppendRow(table.Row{"Currency", fmt.Sprintf("%s %s", stock.Currency.Code, stock.Currency.Sign)})
+		t.AppendRow(table.Row{"Price", tools.TableRowValue(stock.Price)})
+		t.AppendRow(table.Row{"CapturedAt", tools.TableRowValue(stock.CapturedAt)})
+		t.AppendRow(table.Row{"Origin", stock.Origin})
+		// t.AppendRow(table.Row{"Description", stock.Description})
 		t.SetIndexColumn(1)
 		t.Render()
 	},
@@ -49,11 +57,9 @@ var stockListStocksByTickersCmd = &cobra.Command{
 			return
 		}
 		t := common.NewTableWriter()
-		for idx, stock := range stocks {
-			if idx == 0 {
-				t.AppendHeader(tools.StructToTableHeader(stock, []string{"Description", "Origin"}))
-			}
-			t.AppendRow(tools.StructToTableRow(stock, []string{"Description", "Origin"}))
+		t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "CURRENCY", "PRICE", "CAPTURED AT"})
+		for _, stock := range stocks {
+			t.AppendRow(table.Row{stock.Ticker, stock.Name, stock.Document, fmt.Sprintf("%s %s", stock.Currency.Code, stock.Currency.Sign), tools.TableRowValue(stock.Price), tools.TableRowValue(stock.CapturedAt)})
 		}
 		t.SetColumnConfigs([]table.ColumnConfig{
 			{
