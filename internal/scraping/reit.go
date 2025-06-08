@@ -12,9 +12,9 @@ import (
 	"golang.org/x/net/html"
 )
 
-func GetReitByTicker(ticker string) (*resource.Reit, error) {
+func GetReitByTicker(ticker string) (*resource.Security, error) {
 
-	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", REIT_HOST_URL, strings.ToLower(ticker))
+	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
 	htmlDoc, err := getHtml(url)
 	if err != nil {
 		return nil, err
@@ -59,11 +59,17 @@ func GetReitByTicker(ticker string) (*resource.Reit, error) {
 		admin = strings.TrimSpace(n.Data)
 	}
 
-	return &resource.Reit{
-		Ticker:     strings.ToUpper(ticker),
-		Name:       name,
-		Admin:      admin,
-		Segment:    segment,
+	return &resource.Security{
+		Ticker:  strings.ToUpper(ticker),
+		Name:    name,
+		Admin:   admin,
+		Segment: segment,
+		Type:    resource.REIT_TYPE,
+		Currency: &resource.Currency{
+			Code:        "BRL",
+			Description: "Brazilian Real",
+			Sign:        "R$",
+		},
 		Price:      price,
 		Document:   document,
 		Origin:     url,
@@ -71,8 +77,8 @@ func GetReitByTicker(ticker string) (*resource.Reit, error) {
 	}, nil
 }
 
-func ListReitsByTickers(tickers []string) []*resource.Reit {
-	var reits []*resource.Reit
+func ListReitsByTickers(tickers []string) []*resource.Security {
+	var reits []*resource.Security
 	for _, ticker := range tickers {
 		reit, err := GetReitByTicker(ticker)
 		if err == nil {
