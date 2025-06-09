@@ -6,6 +6,7 @@
 
 *   **Preços de Cotas:** Acompanhe os preços de cotas de ações de diversas empresas, obtendo informações em tempo real.
 *   **Preços de FIIs (Fundos de Investimento Imobiliário):** Monitore os preços dos FIIs mais populares, permitindo que você invista em imóveis de forma diversificada.
+*   **Balanceamento de Portfólio:** Dado o valor que deseja investir, e quais tickers você deseja comprar, ele calcula a quantidade de cada ativo que deve comprar.
 
 ## Download
 
