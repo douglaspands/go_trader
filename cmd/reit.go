@@ -36,7 +36,7 @@ var reitGetReitByTickerCmd = &cobra.Command{
 		t.AppendRow(table.Row{"Admin", reit.Admin})
 		t.AppendRow(table.Row{"Document", reit.Document})
 		t.AppendRow(table.Row{"Segment", reit.Segment})
-		t.AppendRow(table.Row{"Currency", fmt.Sprintf("%s %s", reit.Currency.Code, reit.Currency.Sign)})
+		t.AppendRow(table.Row{"Currency", reit.Currency.String()})
 		t.AppendRow(table.Row{"Price", tools.TableRowValue(reit.Price)})
 		t.AppendRow(table.Row{"CapturedAt", tools.TableRowValue(reit.CapturedAt)})
 		t.AppendRow(table.Row{"Origin", reit.Origin})
@@ -59,12 +59,17 @@ var reitListReitsByTickersCmd = &cobra.Command{
 			return
 		}
 		t := common.NewTableWriter()
-		t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "CURRENCY", "PRICE", "CAPTURED AT"})
+		t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "PRICE", "CURRENCY", "CAPTURED AT"})
 		for _, reit := range reits {
-			t.AppendRow(table.Row{reit.Ticker, reit.Name, reit.Document, fmt.Sprintf("%s %s", reit.Currency.Code, reit.Currency.Sign), tools.TableRowValue(reit.Price), tools.TableRowValue(reit.CapturedAt)})
+			t.AppendRow(table.Row{reit.Ticker, reit.Name, reit.Document, tools.TableRowValue(reit.Price), reit.Currency.String(), tools.TableRowValue(reit.CapturedAt)})
 		}
 
 		t.SetColumnConfigs([]table.ColumnConfig{
+			{
+				Name:        "TICKER",
+				AlignHeader: text.AlignRight,
+				Align:       text.AlignRight,
+			},
 			{
 				Name:        "PRICE",
 				AlignHeader: text.AlignRight,
@@ -76,8 +81,57 @@ var reitListReitsByTickersCmd = &cobra.Command{
 	},
 }
 
+var reitPurchaseBalanceByTickersCmd = &cobra.Command{
+	Use:   "purchase-balance [tickers ...] --amount <float>",
+	Short: "Purchase balance by tickers",
+	Long:  `Purchase balance by tickers`,
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		tickers := args
+		purchaseBalance := service.MakeReitPurchaseBalance(tickers, flagAmount)
+		if len(purchaseBalance.SecuritiesBalance) == 0 {
+			fmt.Println("Error: tickers not found!")
+			return
+		}
+		t := common.NewTableWriter()
+		t.AppendHeader(table.Row{"TICKER", "PRICE", "COUNT", "TOTAL", "CURRENCY", "CAPTURED AT"})
+		currency := purchaseBalance.SecuritiesBalance[0].Security.Currency.String()
+		for _, purchase := range purchaseBalance.SecuritiesBalance {
+			t.AppendRow(table.Row{purchase.Security.Ticker, tools.TableRowValue(purchase.Security.Price), purchase.Count, tools.TableRowValue(purchase.TotalAmount()), currency, tools.TableRowValue(purchase.Security.CapturedAt)})
+		}
+		t.SetColumnConfigs([]table.ColumnConfig{
+			{
+				Name:        "TICKER",
+				Align:       text.AlignRight,
+				AlignHeader: text.AlignRight,
+				AlignFooter: text.AlignRight,
+			},
+			{
+				Name:        "PRICE",
+				Align:       text.AlignRight,
+				AlignHeader: text.AlignRight,
+				AlignFooter: text.AlignRight,
+			},
+			{
+				Name:        "TOTAL",
+				Align:       text.AlignRight,
+				AlignHeader: text.AlignRight,
+				AlignFooter: text.AlignRight,
+			},
+		})
+		t.AppendFooter(table.Row{"", "", purchaseBalance.TotalCount(), tools.TableRowValue(purchaseBalance.AmountSpent()), currency, "SPENT AMOUNT"})
+		t.AppendFooter(table.Row{"", "", "", tools.TableRowValue(purchaseBalance.RemainingBalance()), currency, "REMAINING AMOUNT"})
+		t.SetIndexColumn(1)
+		t.Render()
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(reitCmd)
 	reitCmd.AddCommand(reitGetReitByTickerCmd)
 	reitCmd.AddCommand(reitListReitsByTickersCmd)
+	reitCmd.AddCommand(reitPurchaseBalanceByTickersCmd)
+
+	reitPurchaseBalanceByTickersCmd.Flags().Float64VarP(&flagAmount, "amount", "a", 0.0, "Amount invested (required)")
+	reitPurchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
 }
