@@ -8,7 +8,7 @@ import (
 
 func NewTableWriter() table.Writer {
 	style := table.StyleColoredBlackOnBlueWhite
-	style.Options = table.OptionsNoBordersAndSeparators
+	// style.Options = table.OptionsNoBordersAndSeparators
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
 	t.SetStyle(style)

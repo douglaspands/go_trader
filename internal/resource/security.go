@@ -3,7 +3,7 @@ package resource
 import "time"
 
 const (
-	STOCK_TYPE string = "STOCK"
+	STOCK_TYPE string = "Stock"
 	REIT_TYPE  string = "REIT"
 )
 

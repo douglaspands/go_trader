@@ -14,5 +14,12 @@ func GetReit(ticker string) *resource.Security {
 }
 
 func ListReits(tickers []string) []*resource.Security {
-	return scraping.ListReitsByTickers(tickers)
+	result := scraping.ListReitsByTickers(tickers)
+	return result
+}
+
+func MakeReitPurchaseBalance(tickers []string, amountInvested float64) *resource.PurchaseBalance {
+	reits := ListReits(tickers)
+	result := MakePurchaseBalance(reits, amountInvested)
+	return result
 }
