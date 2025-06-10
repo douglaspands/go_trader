@@ -144,19 +144,19 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
 
 # Output:
  TICKER  TYPE    PRICE  COUNT   TOTAL  CURRENCY  CAPTURED AT         
-  ITSA3  Stock   10.87      9   97.83  R$ BRL    2025-06-08 23:14:44 
-  BBDC3  Stock   13.75      7   96.25  R$ BRL    2025-06-08 23:14:45 
-  VALE3  Stock   52.90      2  105.80  R$ BRL    2025-06-08 23:14:45 
-  ABEV3  Stock   14.05      7   98.35  R$ BRL    2025-06-08 23:14:46 
-  PETR4  Stock   29.59      3   88.77  R$ BRL    2025-06-08 23:14:46 
-  WEGE3  Stock   42.57      2   85.14  R$ BRL    2025-06-08 23:14:47 
-  IGTA3  Stock   33.00      3   99.00  R$ BRL    2025-06-08 23:14:47 
-  B3SA3  Stock   13.55      6   81.30  R$ BRL    2025-06-08 23:14:48 
- MXRF11  REIT     9.41      9   84.69  R$ BRL    2025-06-08 23:14:48 
- XPML11  REIT   103.21      0    0.00  R$ BRL    2025-06-08 23:14:48 
- GARE11  REIT     8.73      9   78.57  R$ BRL    2025-06-08 23:14:49 
- HGLG11  REIT   156.20      0    0.00  R$ BRL    2025-06-08 23:14:49 
- VGHF11  REIT     7.70     10   77.00  R$ BRL    2025-06-08 23:14:49 
-                           67  992.70  R$ BRL    SPENT AMOUNT        
-                                 7.30  R$ BRL    REMAINING AMOUNT    
+  ITSA3  Stock   10.84      7   75.88  R$ BRL    2025-06-10 09:35:19 
+  BBDC3  Stock   13.69      5   68.45  R$ BRL    2025-06-10 09:35:19 
+  VALE3  Stock   53.29      1   53.29  R$ BRL    2025-06-10 09:35:19 
+  ABEV3  Stock   13.97      5   69.85  R$ BRL    2025-06-10 09:35:19 
+  PETR4  Stock   29.17      2   58.34  R$ BRL    2025-06-10 09:35:20 
+  WEGE3  Stock   42.84      1   42.84  R$ BRL    2025-06-10 09:35:20 
+  IGTA3  Stock   33.00      2   66.00  R$ BRL    2025-06-10 09:35:20 
+  B3SA3  Stock   13.16      5   65.80  R$ BRL    2025-06-10 09:35:21 
+ MXRF11  REIT     9.31      8   74.48  R$ BRL    2025-06-10 09:35:21 
+ GARE11  REIT     8.74      9   78.66  R$ BRL    2025-06-10 09:35:21 
+ VGHF11  REIT     7.57     11   83.27  R$ BRL    2025-06-10 09:35:22 
+ XPML11  REIT   102.10      1  102.10  R$ BRL    2025-06-10 09:35:21 
+ HGLG11  REIT   155.27      1  155.27  R$ BRL    2025-06-10 09:35:21 
+                           58  994.23  R$ BRL    SPENT AMOUNT        
+                                 5.77  R$ BRL    REMAINING AMOUNT     
 ```

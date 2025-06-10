@@ -11,9 +11,14 @@
             "mode": "auto",
             "program": "main.go",
             "args": [
-                "stock",
-                "get",
-                "BBAS3"
+                "security",
+                "purchase-balance",
+                "--stocks",
+                "ITSA3,BBDC3,VALE3,ABEV3,PETR4,WEGE3,IGTA3,B3SA3",
+                "--reits",
+                "MXRF11,XPML11,GARE11,HGLG11,VGHF11",
+                "--amount",
+                "1000"
             ]
         }
     ]
