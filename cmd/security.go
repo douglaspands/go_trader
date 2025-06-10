@@ -30,7 +30,7 @@ var securityPurchaseBalanceByTickersCmd = &cobra.Command{
 			fmt.Println("Error: tickers not found!")
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"TICKER", "TYPE", "PRICE", "COUNT", "TOTAL", "CURRENCY", "CAPTURED AT"})
 		currency := purchaseBalance.SecuritiesBalance[0].Security.Currency.String()
 		for _, purchase := range purchaseBalance.SecuritiesBalance {
@@ -59,7 +59,11 @@ var securityPurchaseBalanceByTickersCmd = &cobra.Command{
 		t.AppendFooter(table.Row{"", "", "", purchaseBalance.TotalCount(), tools.TableRowValue(purchaseBalance.AmountSpent()), currency, "SPENT AMOUNT"})
 		t.AppendFooter(table.Row{"", "", "", "", tools.TableRowValue(purchaseBalance.RemainingBalance()), currency, "REMAINING AMOUNT"})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -67,6 +71,8 @@ func init() {
 	rootCmd.AddCommand(securityCmd)
 	securityCmd.AddCommand(securityPurchaseBalanceByTickersCmd)
 
+	securityPurchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	securityPurchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
 	securityPurchaseBalanceByTickersCmd.Flags().StringVarP(&flagStocks, "stocks", "s", "", "List of stocks to purchase [ticker1,ticker2...] (required)")
 	securityPurchaseBalanceByTickersCmd.Flags().StringVarP(&flagReits, "reits", "r", "", "List of REITs to purchase [ticker1,ticker2...] (required)")
 	securityPurchaseBalanceByTickersCmd.Flags().Float64VarP(&flagAmount, "amount", "a", 0.0, "Amount invested (required)")

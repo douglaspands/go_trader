@@ -29,7 +29,7 @@ var reitGetReitByTickerCmd = &cobra.Command{
 			fmt.Printf("Error: ticker \"%s\" not found!\n", ticker)
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"FIELD", "VALUE"})
 		t.AppendRow(table.Row{"Ticker", reit.Ticker})
 		t.AppendRow(table.Row{"Name", reit.Name})
@@ -42,7 +42,11 @@ var reitGetReitByTickerCmd = &cobra.Command{
 		t.AppendRow(table.Row{"Origin", reit.Origin})
 		// t.AppendRow(table.Row{"Description", reit.Description})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -58,7 +62,7 @@ var reitListReitsByTickersCmd = &cobra.Command{
 			fmt.Println("Error: tickers not found!")
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "PRICE", "CURRENCY", "CAPTURED AT"})
 		for _, reit := range reits {
 			t.AppendRow(table.Row{reit.Ticker, reit.Name, reit.Document, tools.TableRowValue(reit.Price), reit.Currency.String(), tools.TableRowValue(reit.CapturedAt)})
@@ -77,7 +81,11 @@ var reitListReitsByTickersCmd = &cobra.Command{
 			},
 		})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -93,7 +101,7 @@ var reitPurchaseBalanceByTickersCmd = &cobra.Command{
 			fmt.Println("Error: tickers not found!")
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"TICKER", "PRICE", "COUNT", "TOTAL", "CURRENCY", "CAPTURED AT"})
 		currency := purchaseBalance.SecuritiesBalance[0].Security.Currency.String()
 		for _, purchase := range purchaseBalance.SecuritiesBalance {
@@ -122,7 +130,11 @@ var reitPurchaseBalanceByTickersCmd = &cobra.Command{
 		t.AppendFooter(table.Row{"", "", purchaseBalance.TotalCount(), tools.TableRowValue(purchaseBalance.AmountSpent()), currency, "SPENT AMOUNT"})
 		t.AppendFooter(table.Row{"", "", "", tools.TableRowValue(purchaseBalance.RemainingBalance()), currency, "REMAINING AMOUNT"})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -132,6 +144,14 @@ func init() {
 	reitCmd.AddCommand(reitListReitsByTickersCmd)
 	reitCmd.AddCommand(reitPurchaseBalanceByTickersCmd)
 
+	reitGetReitByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	reitGetReitByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+
+	reitListReitsByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	reitListReitsByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+
+	reitPurchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	reitPurchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
 	reitPurchaseBalanceByTickersCmd.Flags().Float64VarP(&flagAmount, "amount", "a", 0.0, "Amount invested (required)")
 	reitPurchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
 }
