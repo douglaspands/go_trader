@@ -29,7 +29,7 @@ var stockGetStockByTickerCmd = &cobra.Command{
 			fmt.Printf("Error: ticker \"%s\" not found!\n", ticker)
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"FIELD", "VALUE"})
 		t.AppendRow(table.Row{"Ticker", stock.Ticker})
 		t.AppendRow(table.Row{"Name", stock.Name})
@@ -40,7 +40,11 @@ var stockGetStockByTickerCmd = &cobra.Command{
 		t.AppendRow(table.Row{"Origin", stock.Origin})
 		// t.AppendRow(table.Row{"Description", stock.Description})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -56,7 +60,7 @@ var stockListStocksByTickersCmd = &cobra.Command{
 			fmt.Println("Error: tickers not found!")
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "PRICE", "CURRENCY", "CAPTURED AT"})
 		for _, stock := range stocks {
 			t.AppendRow(table.Row{stock.Ticker, stock.Name, stock.Document, tools.TableRowValue(stock.Price), stock.Currency.String(), tools.TableRowValue(stock.CapturedAt)})
@@ -74,7 +78,11 @@ var stockListStocksByTickersCmd = &cobra.Command{
 			},
 		})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -90,7 +98,7 @@ var stockPurchaseBalanceByTickersCmd = &cobra.Command{
 			fmt.Println("Error: tickers not found!")
 			return
 		}
-		t := common.NewTableWriter()
+		t := common.NewTableWriter(flagNoColor)
 		t.AppendHeader(table.Row{"TICKER", "PRICE", "COUNT", "TOTAL", "CURRENCY", "CAPTURED AT"})
 		currency := purchaseBalance.SecuritiesBalance[0].Security.Currency.String()
 		for _, purchase := range purchaseBalance.SecuritiesBalance {
@@ -119,7 +127,11 @@ var stockPurchaseBalanceByTickersCmd = &cobra.Command{
 		t.AppendFooter(table.Row{"", "", purchaseBalance.TotalCount(), tools.TableRowValue(purchaseBalance.AmountSpent()), currency, "SPENT AMOUNT"})
 		t.AppendFooter(table.Row{"", "", "", tools.TableRowValue(purchaseBalance.RemainingBalance()), currency, "REMAINING AMOUNT"})
 		t.SetIndexColumn(1)
-		t.Render()
+		if flagCsv {
+			t.RenderCSV()
+		} else {
+			t.Render()
+		}
 	},
 }
 
@@ -129,6 +141,14 @@ func init() {
 	stockCmd.AddCommand(stockListStocksByTickersCmd)
 	stockCmd.AddCommand(stockPurchaseBalanceByTickersCmd)
 
+	stockGetStockByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	stockGetStockByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+
+	stockListStocksByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	stockListStocksByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+
+	stockPurchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	stockPurchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
 	stockPurchaseBalanceByTickersCmd.Flags().Float64VarP(&flagAmount, "amount", "a", 0.0, "Amount invested (required)")
 	stockPurchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
 }
