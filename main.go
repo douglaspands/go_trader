@@ -1,7 +1,10 @@
 package main
 
-import "trader/cmd"
+import (
+	"trader/internal/app"
+)
 
 func main() {
-	cmd.Execute()
+	app := app.NewApp()
+	app.Run()
 }

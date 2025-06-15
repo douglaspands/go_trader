@@ -2,16 +2,28 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"trader/internal/config"
 
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "trader",
-	Short: "Investor Support Tool",
-	Long: `Investor Support Tool
+type RootCommand interface {
+	GetRoot() *cobra.Command
+	Execute() error
+}
+
+type rootCommand struct {
+	config config.Config
+	// Commands
+	rootCmd       *cobra.Command
+	getVersionCmd *cobra.Command
+}
+
+func (rc *rootCommand) setup() {
+	rc.rootCmd = &cobra.Command{
+		Use:   "trader",
+		Short: "Investor Support Tool",
+		Long: `Investor Support Tool
 
   Designed to assist investors of all levels in making 
   informed decisions and optimizing their portfolios. 
@@ -19,25 +31,35 @@ var rootCmd = &cobra.Command{
   you will have the necessary information to track the market and 
   analyze opportunities with confidence.
 `,
-}
-
-var rootVersionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Show version",
-	Long:  `Show version`,
-	Run: func(cmd *cobra.Command, args []string) {
-		config := config.NewConfig()
-		fmt.Printf("%s\n", config.GetVersion())
-	},
-}
-
-func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
-		os.Exit(1)
 	}
+
+	rc.getVersionCmd = &cobra.Command{
+		Use:   "version",
+		Short: "Show version",
+		Long:  `Show version`,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("%s\n", rc.config.GetVersion())
+		},
+	}
+
 }
 
-func init() {
-	rootCmd.AddCommand(rootVersionCmd)
+func (rc *rootCommand) register() {
+	rc.rootCmd.AddCommand(rc.getVersionCmd)
+}
+
+func (rc *rootCommand) GetRoot() *cobra.Command {
+	rc.setup()
+	rc.register()
+	return rc.rootCmd
+}
+
+func (rc *rootCommand) Execute() error {
+	return rc.GetRoot().Execute()
+}
+
+func NewRootCommand(config config.Config) RootCommand {
+	return &rootCommand{
+		config: config,
+	}
 }
