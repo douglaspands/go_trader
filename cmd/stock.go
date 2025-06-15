@@ -109,9 +109,9 @@ func (sc *stockCommand) register() {
 }
 
 func (sc *stockCommand) InitApp(rootCmd RootCommand) {
+	rootCmd.GetCobraCommand().AddCommand(sc.rootCmd)
 	sc.setup()
 	sc.register()
-	rootCmd.GetCobraCommand().AddCommand(sc.rootCmd)
 }
 
 func NewStockCommand(stockService service.StockService) StockCommand {

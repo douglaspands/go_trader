@@ -21,6 +21,10 @@ type securityCommand struct {
 	// Commands
 	rootCmd                     *cobra.Command
 	purchaseBalanceByTickersCmd *cobra.Command
+	// Flags
+	flagAmount float64
+	flagStocks string
+	flagReits  string
 }
 
 func (sc *securityCommand) setup() {
@@ -30,9 +34,9 @@ func (sc *securityCommand) setup() {
 		Long:  `Purchase balance by tickers`,
 		Run: func(cmd *cobra.Command, args []string) {
 
-			stocks := strings.Split(flagStocks, ",")
-			reits := strings.Split(flagReits, ",")
-			purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, flagAmount)
+			stocks := strings.Split(sc.flagStocks, ",")
+			reits := strings.Split(sc.flagReits, ",")
+			purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, sc.flagAmount)
 			if len(purchaseBalance.SecuritiesBalance) == 0 {
 				fmt.Println("Error: tickers not found!")
 				return
@@ -76,9 +80,9 @@ func (sc *securityCommand) setup() {
 
 	sc.purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
 	sc.purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	sc.purchaseBalanceByTickersCmd.Flags().StringVarP(&flagStocks, "stocks", "s", "", "List of stocks to purchase [ticker1,ticker2...] (required)")
-	sc.purchaseBalanceByTickersCmd.Flags().StringVarP(&flagReits, "reits", "r", "", "List of REITs to purchase [ticker1,ticker2...] (required)")
-	sc.purchaseBalanceByTickersCmd.Flags().Float64VarP(&flagAmount, "amount", "a", 0.0, "Amount invested (required)")
+	sc.purchaseBalanceByTickersCmd.Flags().StringVarP(&sc.flagStocks, "stocks", "s", "", "List of stocks to purchase [ticker1,ticker2...] (required)")
+	sc.purchaseBalanceByTickersCmd.Flags().StringVarP(&sc.flagReits, "reits", "r", "", "List of REITs to purchase [ticker1,ticker2...] (required)")
+	sc.purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
 	sc.purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
 
 }
