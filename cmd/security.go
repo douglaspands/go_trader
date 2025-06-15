@@ -24,12 +24,6 @@ type securityCommand struct {
 }
 
 func (sc *securityCommand) setup() {
-	sc.rootCmd = &cobra.Command{
-		Use:   "security",
-		Short: "Tool to get security information",
-		Long:  `Tool to get security information`,
-	}
-
 	sc.purchaseBalanceByTickersCmd = &cobra.Command{
 		Use:   "purchase-balance --stocks [tickers ...] --reits [tickers ...] --amount <float>",
 		Short: "Purchase balance by tickers",
@@ -94,13 +88,18 @@ func (sc *securityCommand) register() {
 }
 
 func (sc *securityCommand) InitApp(rootCmd RootCommand) {
+	rootCmd.GetCobraCommand().AddCommand(sc.rootCmd)
 	sc.setup()
-	rootCmd.GetRoot().AddCommand(sc.rootCmd)
 	sc.register()
 }
 
 func NewSecurityCommand(purchaseBalanceService service.PurchaseBalanceService) SecurityCommand {
 	return &securityCommand{
 		purchaseBalanceService: purchaseBalanceService,
+		rootCmd: &cobra.Command{
+			Use:   "security",
+			Short: "Tool to get security information",
+			Long:  `Tool to get security information`,
+		},
 	}
 }

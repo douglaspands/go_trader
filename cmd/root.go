@@ -8,7 +8,7 @@ import (
 )
 
 type RootCommand interface {
-	GetRoot() *cobra.Command
+	GetCobraCommand() *cobra.Command
 	Execute() error
 }
 
@@ -20,19 +20,6 @@ type rootCommand struct {
 }
 
 func (rc *rootCommand) setup() {
-	rc.rootCmd = &cobra.Command{
-		Use:   "trader",
-		Short: "Investor Support Tool",
-		Long: `Investor Support Tool
-
-  Designed to assist investors of all levels in making 
-  informed decisions and optimizing their portfolios. 
-  With an intuitive interface and access to real-time data, 
-  you will have the necessary information to track the market and 
-  analyze opportunities with confidence.
-`,
-	}
-
 	rc.getVersionCmd = &cobra.Command{
 		Use:   "version",
 		Short: "Show version",
@@ -48,18 +35,30 @@ func (rc *rootCommand) register() {
 	rc.rootCmd.AddCommand(rc.getVersionCmd)
 }
 
-func (rc *rootCommand) GetRoot() *cobra.Command {
-	rc.setup()
-	rc.register()
+func (rc *rootCommand) GetCobraCommand() *cobra.Command {
 	return rc.rootCmd
 }
 
 func (rc *rootCommand) Execute() error {
-	return rc.GetRoot().Execute()
+	rc.setup()
+	rc.register()
+	return rc.GetCobraCommand().Execute()
 }
 
 func NewRootCommand(config config.Config) RootCommand {
 	return &rootCommand{
 		config: config,
+		rootCmd: &cobra.Command{
+			Use:   "trader",
+			Short: "Investor Support Tool",
+			Long: `Investor Support Tool
+
+  Designed to assist investors of all levels in making 
+  informed decisions and optimizing their portfolios. 
+  With an intuitive interface and access to real-time data, 
+  you will have the necessary information to track the market and 
+  analyze opportunities with confidence.
+`,
+		},
 	}
 }

@@ -24,12 +24,6 @@ type stockCommand struct {
 }
 
 func (sc *stockCommand) setup() {
-	sc.rootCmd = &cobra.Command{
-		Use:   "stock",
-		Short: "Tool to get stock information",
-		Long:  `Tool to get stock information`,
-	}
-
 	// getStockByTickerCmd
 	sc.getStockByTickerCmd = &cobra.Command{
 		Use:   "get [ticker]",
@@ -116,12 +110,17 @@ func (sc *stockCommand) register() {
 
 func (sc *stockCommand) InitApp(rootCmd RootCommand) {
 	sc.setup()
-	rootCmd.GetRoot().AddCommand(sc.rootCmd)
 	sc.register()
+	rootCmd.GetCobraCommand().AddCommand(sc.rootCmd)
 }
 
 func NewStockCommand(stockService service.StockService) StockCommand {
 	return &stockCommand{
 		stockService: stockService,
+		rootCmd: &cobra.Command{
+			Use:   "stock",
+			Short: "Tool to get stock information",
+			Long:  `Tool to get stock information`,
+		},
 	}
 }

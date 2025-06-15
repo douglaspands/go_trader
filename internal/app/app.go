@@ -13,32 +13,42 @@ type App interface {
 }
 
 type app struct {
-	cmdRoot cmd.RootCommand
+	config                 config.Config
+	stockScraping          scraping.StockScraping
+	reitScraping           scraping.ReitScraping
+	stockService           service.StockService
+	reitService            service.ReitService
+	purchaseBalanceService service.PurchaseBalanceService
+	// Commands
+	rootCommand     cmd.RootCommand
+	stockCommand    cmd.StockCommand
+	reitCommand     cmd.ReitCommand
+	securityCommand cmd.SecurityCommand
 }
 
 func (a *app) setup() {
-	config := config.NewConfig()
-	stockScraping := scraping.NewStockScraping(config)
-	stockService := service.NewStockService(stockScraping)
-	reitScraping := scraping.NewReitScraping(config)
-	reitService := service.NewReitService(reitScraping)
-	purchaseBalanceService := service.NewPurchaseBalanceService(stockService, reitService)
+	a.config = config.NewConfig()
+	a.stockScraping = scraping.NewStockScraping(a.config)
+	a.stockService = service.NewStockService(a.stockScraping)
+	a.reitScraping = scraping.NewReitScraping(a.config)
+	a.reitService = service.NewReitService(a.reitScraping)
+	a.purchaseBalanceService = service.NewPurchaseBalanceService(a.stockService, a.reitService)
 
-	a.cmdRoot = cmd.NewRootCommand(config)
-	stockCommand := cmd.NewStockCommand(stockService)
-	stockCommand.InitApp(a.cmdRoot)
+	a.rootCommand = cmd.NewRootCommand(a.config)
+	a.stockCommand = cmd.NewStockCommand(a.stockService)
+	a.stockCommand.InitApp(a.rootCommand)
 
-	reitCommand := cmd.NewReitCommand(reitService)
-	reitCommand.InitApp(a.cmdRoot)
+	a.reitCommand = cmd.NewReitCommand(a.reitService)
+	a.reitCommand.InitApp(a.rootCommand)
 
-	securityCommand := cmd.NewSecurityCommand(purchaseBalanceService)
-	securityCommand.InitApp(a.cmdRoot)
+	a.securityCommand = cmd.NewSecurityCommand(a.purchaseBalanceService)
+	a.securityCommand.InitApp(a.rootCommand)
 
 }
 
 func (a *app) Run() {
 	a.setup()
-	err := a.cmdRoot.Execute()
+	err := a.rootCommand.Execute()
 	if err != nil {
 		os.Exit(1)
 	}

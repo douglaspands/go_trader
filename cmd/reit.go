@@ -25,12 +25,6 @@ type reitCommand struct {
 
 func (rc *reitCommand) setup() {
 
-	rc.rootCmd = &cobra.Command{
-		Use:   "reit",
-		Short: "Tool to get reit information",
-		Long:  `Tool to get reit information`,
-	}
-
 	// getReitByTickerCmd
 	rc.getReitByTickerCmd = &cobra.Command{
 		Use:   "get [ticker]",
@@ -117,13 +111,18 @@ func (rc *reitCommand) register() {
 }
 
 func (rc *reitCommand) InitApp(rootCmd RootCommand) {
+	rootCmd.GetCobraCommand().AddCommand(rc.rootCmd)
 	rc.setup()
-	rootCmd.GetRoot().AddCommand(rc.rootCmd)
 	rc.register()
 }
 
 func NewReitCommand(reitService service.ReitService) ReitCommand {
 	return &reitCommand{
 		reitService: reitService,
+		rootCmd: &cobra.Command{
+			Use:   "reit",
+			Short: "Tool to get reit information",
+			Long:  `Tool to get reit information`,
+		},
 	}
 }
