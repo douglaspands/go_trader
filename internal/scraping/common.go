@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
-	"trader/internal/config"
 )
 
 var userAgents = []string{
@@ -59,27 +58,20 @@ func setHeaders(header *http.Header) {
 	header.Set("Referer", "https://www.google.com/")
 }
 
-func getHtml(url string) ([]byte, error) {
-	config := config.GetConfig()
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
+func getHtml(url string, timeout time.Duration) ([]byte, error) {
+	req, _ := http.NewRequest("GET", url, nil)
 	setHeaders(&req.Header)
-
 	client := &http.Client{
-		Timeout: time.Second * time.Duration(config.ScrapingTimeoutTtl),
+		Timeout: time.Second * timeout,
 	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf(`status="%d" for url="%s"`, resp.StatusCode, url)
+		return nil, fmt.Errorf("status=\"%d\" for url=\"%s\"", resp.StatusCode, url)
 	}
 	defer resp.Body.Close()
-
 	var reader io.Reader
 	switch resp.Header.Get("Content-Encoding") {
 	case "gzip":
@@ -93,11 +85,9 @@ func getHtml(url string) ([]byte, error) {
 	default:
 		reader = resp.Body
 	}
-
 	body, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
-
 	return body, nil
 }

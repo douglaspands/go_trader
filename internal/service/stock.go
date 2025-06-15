@@ -5,21 +5,30 @@ import (
 	"trader/internal/scraping"
 )
 
-func GetStock(ticker string) *resource.Security {
-	stock, err := scraping.GetStockByTicker(ticker)
+type StockService interface {
+	GetStockByTicker(ticker string) *resource.Security
+	ListStocksByTickers(tickers []string) []*resource.Security
+}
+
+type stockService struct {
+	stockScraping scraping.StockScraping
+}
+
+func (ss *stockService) GetStockByTicker(ticker string) *resource.Security {
+	stock, err := ss.stockScraping.GetStockByTicker(ticker)
 	if err != nil {
 		return nil
 	}
 	return stock
 }
 
-func ListStocks(tickers []string) []*resource.Security {
-	result := scraping.ListStocksByTickers(tickers)
+func (ss *stockService) ListStocksByTickers(tickers []string) []*resource.Security {
+	result := ss.stockScraping.ListStocksByTickers(tickers)
 	return result
 }
 
-func MakeStockPurchaseBalance(tickers []string, amountInvested float64) *resource.PurchaseBalance {
-	stocks := ListStocks(tickers)
-	result := MakePurchaseBalance(stocks, amountInvested)
-	return result
+func NewStockService(stockScraping scraping.StockScraping) StockService {
+	return &stockService{
+		stockScraping: stockScraping,
+	}
 }

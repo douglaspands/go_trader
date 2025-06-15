@@ -6,16 +6,26 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"trader/internal/config"
 	"trader/internal/resource"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
-func GetReitByTicker(ticker string) (*resource.Security, error) {
+type ReitScraping interface {
+	GetReitByTicker(ticker string) (*resource.Security, error)
+	ListReitsByTickers(tickers []string) []*resource.Security
+}
+type reitScraping struct {
+	url    string
+	config config.Config
+}
+
+func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, error) {
 
 	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
-	htmlDoc, err := getHtml(url)
+	htmlDoc, err := getHtml(url, rs.config.GetScrapingTimeout())
 	if err != nil {
 		return nil, err
 	}
@@ -77,13 +87,20 @@ func GetReitByTicker(ticker string) (*resource.Security, error) {
 	}, nil
 }
 
-func ListReitsByTickers(tickers []string) []*resource.Security {
+func (rs *reitScraping) ListReitsByTickers(tickers []string) []*resource.Security {
 	var reits []*resource.Security
 	for _, ticker := range tickers {
-		reit, err := GetReitByTicker(ticker)
+		reit, err := rs.GetReitByTicker(ticker)
 		if err == nil {
 			reits = append(reits, reit)
 		}
 	}
 	return reits
+}
+
+func NewReitScraping(config config.Config) ReitScraping {
+	return &reitScraping{
+		url:    STATUS_INVEST_URL,
+		config: config,
+	}
 }

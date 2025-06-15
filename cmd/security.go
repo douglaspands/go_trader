@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"trader/internal/common"
+	"trader/internal/config"
+	"trader/internal/scraping"
 	"trader/internal/service"
 	"trader/internal/tools"
 
@@ -23,9 +25,16 @@ var securityPurchaseBalanceByTickersCmd = &cobra.Command{
 	Short: "Purchase balance by tickers",
 	Long:  `Purchase balance by tickers`,
 	Run: func(cmd *cobra.Command, args []string) {
+		config := config.NewConfig()
+		stockScraping := scraping.NewStockScraping(config)
+		stockService := service.NewStockService(stockScraping)
+		reitScraping := scraping.NewReitScraping(config)
+		reitService := service.NewReitService(reitScraping)
+		purchaseBalanceService := service.NewPurchaseBalanceService(stockService, reitService)
+
 		stocks := strings.Split(flagStocks, ",")
 		reits := strings.Split(flagReits, ",")
-		purchaseBalance := service.MakeSecuritiesPurchaseBalance(stocks, reits, flagAmount)
+		purchaseBalance := purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, flagAmount)
 		if len(purchaseBalance.SecuritiesBalance) == 0 {
 			fmt.Println("Error: tickers not found!")
 			return

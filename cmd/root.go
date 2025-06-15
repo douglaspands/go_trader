@@ -26,8 +26,8 @@ var rootVersionCmd = &cobra.Command{
 	Short: "Show version",
 	Long:  `Show version`,
 	Run: func(cmd *cobra.Command, args []string) {
-		config := config.GetConfig()
-		fmt.Printf("%s\n", config.Version)
+		config := config.NewConfig()
+		fmt.Printf("%s\n", config.GetVersion())
 	},
 }
 

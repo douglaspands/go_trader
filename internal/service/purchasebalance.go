@@ -6,7 +6,17 @@ import (
 	"trader/internal/resource"
 )
 
-func MakePurchaseBalance(securities []*resource.Security, amountInvested float64) *resource.PurchaseBalance {
+type PurchaseBalanceService interface {
+	PurchaseBalance(securities []*resource.Security, amountInvested float64) *resource.PurchaseBalance
+	PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance
+}
+
+type purchaseBalanceService struct {
+	stockService StockService
+	reitService  ReitService
+}
+
+func (pb *purchaseBalanceService) PurchaseBalance(securities []*resource.Security, amountInvested float64) *resource.PurchaseBalance {
 	securityCount := len(securities)
 	securityValue := amountInvested / float64(securityCount)
 	remainingBalance := amountInvested
@@ -77,10 +87,17 @@ func MakePurchaseBalance(securities []*resource.Security, amountInvested float64
 	return &resource.PurchaseBalance{SecuritiesBalance: securitiesPurchase, AmountInvested: amountInvested}
 }
 
-func MakeSecuritiesPurchaseBalance(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance {
-	stocks := ListStocks(stockTickers)
-	reits := ListReits(reitTickers)
+func (pb *purchaseBalanceService) PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance {
+	stocks := pb.stockService.ListStocksByTickers(stockTickers)
+	reits := pb.reitService.ListReitsByTickers(reitTickers)
 	securities := append(stocks, reits...)
-	result := MakePurchaseBalance(securities, amountInvested)
+	result := pb.PurchaseBalance(securities, amountInvested)
 	return result
+}
+
+func NewPurchaseBalanceService(stockService StockService, reitService ReitService) PurchaseBalanceService {
+	return &purchaseBalanceService{
+		stockService: stockService,
+		reitService:  reitService,
+	}
 }

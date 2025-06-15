@@ -6,3 +6,12 @@ build/windows:
 
 build/darwin:
 	GOARCH=arm64 GOOS=darwin go build -trimpath -o ./trader main.go
+
+test/unit:
+	go test -coverprofile=coverage.out ./...
+
+test/coverage:
+	go tool cover -html=coverage.out
+
+test/all: test/unit test/coverage
+

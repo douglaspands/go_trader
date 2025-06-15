@@ -5,21 +5,30 @@ import (
 	"trader/internal/scraping"
 )
 
-func GetReit(ticker string) *resource.Security {
-	stock, err := scraping.GetReitByTicker(ticker)
+type ReitService interface {
+	GetReitByTicker(ticker string) *resource.Security
+	ListReitsByTickers(tickers []string) []*resource.Security
+}
+
+type reitService struct {
+	reitScraping scraping.ReitScraping
+}
+
+func (rs *reitService) GetReitByTicker(ticker string) *resource.Security {
+	reit, err := rs.reitScraping.GetReitByTicker(ticker)
 	if err != nil {
 		return nil
 	}
-	return stock
+	return reit
 }
 
-func ListReits(tickers []string) []*resource.Security {
-	result := scraping.ListReitsByTickers(tickers)
+func (rs *reitService) ListReitsByTickers(tickers []string) []*resource.Security {
+	result := rs.reitScraping.ListReitsByTickers(tickers)
 	return result
 }
 
-func MakeReitPurchaseBalance(tickers []string, amountInvested float64) *resource.PurchaseBalance {
-	reits := ListReits(tickers)
-	result := MakePurchaseBalance(reits, amountInvested)
-	return result
+func NewReitService(reitScraping scraping.ReitScraping) ReitService {
+	return &reitService{
+		reitScraping: reitScraping,
+	}
 }

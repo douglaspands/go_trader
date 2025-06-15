@@ -6,16 +6,27 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"trader/internal/config"
 	"trader/internal/resource"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
-func GetStockByTicker(ticker string) (*resource.Security, error) {
+type StockScraping interface {
+	GetStockByTicker(ticker string) (*resource.Security, error)
+	ListStocksByTickers(tickers []string) []*resource.Security
+}
 
-	url := fmt.Sprintf("%s/acoes/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
-	htmlDoc, err := getHtml(url)
+type stockScraping struct {
+	url    string
+	config config.Config
+}
+
+func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, error) {
+
+	url := fmt.Sprintf("%s/acoes/%s", ss.url, strings.ToLower(ticker))
+	htmlDoc, err := getHtml(url, ss.config.GetScrapingTimeout())
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +80,20 @@ func GetStockByTicker(ticker string) (*resource.Security, error) {
 	}, nil
 }
 
-func ListStocksByTickers(tickers []string) []*resource.Security {
+func (ss *stockScraping) ListStocksByTickers(tickers []string) []*resource.Security {
 	var stocks []*resource.Security
 	for _, ticker := range tickers {
-		stock, err := GetStockByTicker(ticker)
+		stock, err := ss.GetStockByTicker(ticker)
 		if err == nil {
 			stocks = append(stocks, stock)
 		}
 	}
 	return stocks
+}
+
+func NewStockScraping(config config.Config) StockScraping {
+	return &stockScraping{
+		url:    STATUS_INVEST_URL,
+		config: config,
+	}
 }
