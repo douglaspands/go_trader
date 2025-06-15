@@ -1,10 +1,8 @@
 package main
 
-import (
-	"trader/internal/app"
-)
+import "trader/internal/core"
 
 func main() {
-	app := app.NewApp()
+	app := core.NewApp()
 	app.Run()
 }
