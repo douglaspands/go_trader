@@ -29,16 +29,16 @@ type app struct {
 func (a *app) setup() {
 	a.config = config.NewConfig()
 	a.stockScraping = scraping.NewStockScraping(a.config)
-	a.stockService = service.NewStockService(a.stockScraping)
 	a.reitScraping = scraping.NewReitScraping(a.config)
+	a.stockService = service.NewStockService(a.stockScraping)
 	a.reitService = service.NewReitService(a.reitScraping)
 	a.purchaseBalanceService = service.NewPurchaseBalanceService(a.stockService, a.reitService)
 
 	a.rootCommand = cmd.NewRootCommand(a.config)
-	a.stockCommand = cmd.NewStockCommand(a.stockService)
+	a.stockCommand = cmd.NewStockCommand(a.stockService, a.purchaseBalanceService)
 	a.stockCommand.InitApp(a.rootCommand)
 
-	a.reitCommand = cmd.NewReitCommand(a.reitService)
+	a.reitCommand = cmd.NewReitCommand(a.reitService, a.purchaseBalanceService)
 	a.reitCommand.InitApp(a.rootCommand)
 
 	a.securityCommand = cmd.NewSecurityCommand(a.purchaseBalanceService)

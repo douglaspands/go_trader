@@ -93,7 +93,48 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
  VGHF11  VALORA HEDGE FUND     36.771.692/0001-19    7.70  R$ BRL    2025-06-08 23:02:38 
 ```
 
-5. Balancear portifolio entre ações e FIIs:
+5. Balancear portifolio de ações:
+
+```sh
+# Windows
+.\trader.exe stock purchase-balance ITSA3 BBDC3 VALE3 ABEV3 PETR4 WEGE3 IGTA3 B3SA3 --amount 1000
+# Linux/Mac
+./trader stock purchase-balance ITSA3 BBDC3 VALE3 ABEV3 PETR4 WEGE3 IGTA3 B3SA3 --amount 1000
+
+# Output:
+ TICKER  PRICE  COUNT   TOTAL  CURRENCY  CAPTURED AT         
+  ITSA3  10.87     12  130.44  R$ BRL    2025-06-08 23:13:46 
+  BBDC3  13.75     10  137.50  R$ BRL    2025-06-08 23:13:46 
+  VALE3  52.90      3  158.70  R$ BRL    2025-06-08 23:13:46 
+  ABEV3  14.05      9  126.45  R$ BRL    2025-06-08 23:13:46 
+  PETR4  29.59      4  118.36  R$ BRL    2025-06-08 23:13:47 
+  WEGE3  42.57      2   85.14  R$ BRL    2025-06-08 23:13:47 
+  IGTA3  33.00      3   99.00  R$ BRL    2025-06-08 23:13:47 
+  B3SA3  13.55     10  135.50  R$ BRL    2025-06-08 23:13:47 
+                   53  991.09  R$ BRL    SPENT AMOUNT        
+                         8.91  R$ BRL    REMAINING AMOUNT                                                                          
+```
+
+6. Balancear portifolio de FIIs:
+
+```sh
+# Windows
+.\trader.exe reit purchase-balance MXRF11 XPML11 GARE11 HGLG11 VGHF11 --amount 1000
+# Linux/Mac
+./trader reit purchase-balance MXRF11 XPML11 GARE11 HGLG11 VGHF11 --amount 1000
+
+# Output:
+ TICKER   PRICE  COUNT   TOTAL  CURRENCY  CAPTURED AT         
+ MXRF11    9.41     23  216.43  R$ BRL    2025-06-08 23:14:08 
+ XPML11  103.21      2  206.42  R$ BRL    2025-06-08 23:14:08 
+ GARE11    8.73     24  209.52  R$ BRL    2025-06-08 23:14:08 
+ HGLG11  156.20      1  156.20  R$ BRL    2025-06-08 23:14:09 
+ VGHF11    7.70     27  207.90  R$ BRL    2025-06-08 23:14:09 
+                    77  996.47  R$ BRL    SPENT AMOUNT        
+                          3.53  R$ BRL    REMAINING AMOUNT    
+```
+
+7. Balancear portifolio entre ações e FIIs:
 
 ```sh
 # Windows
