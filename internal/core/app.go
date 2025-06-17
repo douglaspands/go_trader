@@ -13,37 +13,31 @@ type App interface {
 }
 
 type app struct {
-	config                 config.Config
-	stockScraping          scraping.StockScraping
-	reitScraping           scraping.ReitScraping
-	stockService           service.StockService
-	reitService            service.ReitService
-	purchaseBalanceService service.PurchaseBalanceService
-	// Commands
-	rootCommand     cmd.RootCommand
-	stockCommand    cmd.StockCommand
-	reitCommand     cmd.ReitCommand
-	securityCommand cmd.SecurityCommand
+	rootCommand cmd.RootCommand
 }
 
 func (a *app) setup() {
-	a.config = config.NewConfig()
-	a.stockScraping = scraping.NewStockScraping(a.config)
-	a.reitScraping = scraping.NewReitScraping(a.config)
-	a.stockService = service.NewStockService(a.stockScraping)
-	a.reitService = service.NewReitService(a.reitScraping)
-	a.purchaseBalanceService = service.NewPurchaseBalanceService(a.stockService, a.reitService)
+	config := config.NewConfig()
 
-	a.rootCommand = cmd.NewRootCommand(a.config)
-	a.stockCommand = cmd.NewStockCommand(a.stockService, a.purchaseBalanceService)
-	a.stockCommand.InitApp(a.rootCommand)
+	stockScraping := scraping.NewStockScraping(config)
+	reitScraping := scraping.NewReitScraping(config)
 
-	a.reitCommand = cmd.NewReitCommand(a.reitService, a.purchaseBalanceService)
-	a.reitCommand.InitApp(a.rootCommand)
+	stockService := service.NewStockService(stockScraping)
+	reitService := service.NewReitService(reitScraping)
+	purchaseBalanceService := service.NewPurchaseBalanceService(stockService, reitService)
 
-	a.securityCommand = cmd.NewSecurityCommand(a.purchaseBalanceService)
-	a.securityCommand.InitApp(a.rootCommand)
+	rootCommand := cmd.NewRootCommand(config)
 
+	stockCommand := cmd.NewStockCommand(stockService, purchaseBalanceService)
+	stockCommand.InitApp(rootCommand)
+
+	reitCommand := cmd.NewReitCommand(reitService, purchaseBalanceService)
+	reitCommand.InitApp(rootCommand)
+
+	securityCommand := cmd.NewSecurityCommand(purchaseBalanceService)
+	securityCommand.InitApp(rootCommand)
+
+	a.rootCommand = rootCommand
 }
 
 func (a *app) Run() {

@@ -15,24 +15,21 @@ type RootCommand interface {
 type rootCommand struct {
 	config config.Config
 	// Commands
-	rootCmd       *cobra.Command
-	getVersionCmd *cobra.Command
+	rootCmd *cobra.Command
+}
+
+func (rc *rootCommand) getVersionCmd(cmd *cobra.Command, args []string) {
+	fmt.Printf("%s\n", rc.config.GetVersion())
 }
 
 func (rc *rootCommand) setup() {
-	rc.getVersionCmd = &cobra.Command{
+	getVersionCmd := &cobra.Command{
 		Use:   "version",
 		Short: "Show version",
 		Long:  `Show version`,
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("%s\n", rc.config.GetVersion())
-		},
+		Run:   rc.getVersionCmd,
 	}
-
-}
-
-func (rc *rootCommand) register() {
-	rc.rootCmd.AddCommand(rc.getVersionCmd)
+	rc.rootCmd.AddCommand(getVersionCmd)
 }
 
 func (rc *rootCommand) GetCobraCommand() *cobra.Command {
@@ -41,7 +38,6 @@ func (rc *rootCommand) GetCobraCommand() *cobra.Command {
 
 func (rc *rootCommand) Execute() error {
 	rc.setup()
-	rc.register()
 	return rc.GetCobraCommand().Execute()
 }
 
