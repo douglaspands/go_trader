@@ -27,7 +27,6 @@ type securityCommand struct {
 }
 
 func (sc *securityCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) {
-
 	stocks := strings.Split(sc.flagStocks, ",")
 	reits := strings.Split(sc.flagReits, ",")
 	purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, sc.flagAmount)
