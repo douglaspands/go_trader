@@ -19,15 +19,12 @@ type stockCommand struct {
 	stockService           service.StockService
 	purchaseBalanceService service.PurchaseBalanceService
 	// Commands
-	rootCmd                     *cobra.Command
-	getStockByTickerCmd         *cobra.Command
-	listStocksByTickersCmd      *cobra.Command
-	purchaseBalanceByTickersCmd *cobra.Command
+	rootCmd *cobra.Command
 	// Flags
 	flagAmount float64
 }
 
-func (sc *stockCommand) getStockByTickerFunc(cmd *cobra.Command, args []string) {
+func (sc *stockCommand) getStockByTickerCmd(cmd *cobra.Command, args []string) {
 	ticker := args[0]
 	stock := sc.stockService.GetStockByTicker(ticker)
 	if stock == nil {
@@ -52,7 +49,7 @@ func (sc *stockCommand) getStockByTickerFunc(cmd *cobra.Command, args []string) 
 	}
 }
 
-func (sc *stockCommand) listStocksByTickersFunc(cmd *cobra.Command, args []string) {
+func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string) {
 	tickers := args
 	stocks := sc.stockService.ListStocksByTickers(tickers)
 	if len(stocks) == 0 {
@@ -84,7 +81,7 @@ func (sc *stockCommand) listStocksByTickersFunc(cmd *cobra.Command, args []strin
 	}
 }
 
-func (sc *stockCommand) purchaseBalanceByTickersFunc(cmd *cobra.Command, args []string) {
+func (sc *stockCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) {
 	tickers := args
 	purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(tickers, []string{}, sc.flagAmount)
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
@@ -128,43 +125,43 @@ func (sc *stockCommand) purchaseBalanceByTickersFunc(cmd *cobra.Command, args []
 }
 
 func (sc *stockCommand) setup() {
-	sc.getStockByTickerCmd = &cobra.Command{
+	getStockByTickerCmd := &cobra.Command{
 		Use:   "get [ticker]",
 		Short: "Get a stock by ticker",
 		Long:  `Get a stock by ticker`,
 		Args:  cobra.ExactArgs(1),
-		Run:   sc.getStockByTickerFunc,
+		Run:   sc.getStockByTickerCmd,
 	}
 
-	sc.getStockByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	sc.getStockByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	sc.rootCmd.AddCommand(sc.getStockByTickerCmd)
+	getStockByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	getStockByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	sc.rootCmd.AddCommand(getStockByTickerCmd)
 
-	sc.listStocksByTickersCmd = &cobra.Command{
+	listStocksByTickersCmd := &cobra.Command{
 		Use:   "list [tickers ...]",
 		Short: "List stocks by tickers",
 		Long:  `List stocks by tickers`,
 		Args:  cobra.MinimumNArgs(1),
-		Run:   sc.listStocksByTickersFunc,
+		Run:   sc.listStocksByTickersCmd,
 	}
 
-	sc.listStocksByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	sc.listStocksByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	sc.rootCmd.AddCommand(sc.listStocksByTickersCmd)
+	listStocksByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	listStocksByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	sc.rootCmd.AddCommand(listStocksByTickersCmd)
 
-	sc.purchaseBalanceByTickersCmd = &cobra.Command{
+	purchaseBalanceByTickersCmd := &cobra.Command{
 		Use:   "purchase-balance [tickers ...] --amount <float>",
 		Short: "Purchase balance by tickers",
 		Long:  `Purchase balance by tickers`,
 		Args:  cobra.MinimumNArgs(1),
-		Run:   sc.purchaseBalanceByTickersFunc,
+		Run:   sc.purchaseBalanceByTickersCmd,
 	}
 
-	sc.purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	sc.purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	sc.purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
-	sc.purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
-	sc.rootCmd.AddCommand(sc.purchaseBalanceByTickersCmd)
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
+	purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
+	sc.rootCmd.AddCommand(purchaseBalanceByTickersCmd)
 }
 
 func (sc *stockCommand) InitApp(rootCmd RootCommand) {

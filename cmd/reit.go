@@ -19,15 +19,12 @@ type reitCommand struct {
 	reitService            service.ReitService
 	purchaseBalanceService service.PurchaseBalanceService
 	// Commands
-	rootCmd                     *cobra.Command
-	getReitByTickerCmd          *cobra.Command
-	listReitsByTickersCmd       *cobra.Command
-	purchaseBalanceByTickersCmd *cobra.Command
+	rootCmd *cobra.Command
 	// Flags
 	flagAmount float64
 }
 
-func (rc *reitCommand) getReitByTickerFunc(cmd *cobra.Command, args []string) {
+func (rc *reitCommand) getReitByTickerCmd(cmd *cobra.Command, args []string) {
 	ticker := args[0]
 	reit := rc.reitService.GetReitByTicker(ticker)
 	if reit == nil {
@@ -54,7 +51,7 @@ func (rc *reitCommand) getReitByTickerFunc(cmd *cobra.Command, args []string) {
 	}
 }
 
-func (rc *reitCommand) listReitsByTickersFunc(cmd *cobra.Command, args []string) {
+func (rc *reitCommand) listReitsByTickersCmd(cmd *cobra.Command, args []string) {
 	tickers := args
 	reits := rc.reitService.ListReitsByTickers(tickers)
 	if len(reits) == 0 {
@@ -66,7 +63,6 @@ func (rc *reitCommand) listReitsByTickersFunc(cmd *cobra.Command, args []string)
 	for _, reit := range reits {
 		t.AppendRow(table.Row{reit.Ticker, reit.Name, reit.Document, tools.TableRowValue(reit.Price), reit.Currency.String(), tools.TableRowValue(reit.CapturedAt)})
 	}
-
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{
 			Name:        "TICKER",
@@ -87,7 +83,7 @@ func (rc *reitCommand) listReitsByTickersFunc(cmd *cobra.Command, args []string)
 	}
 }
 
-func (rc *reitCommand) purchaseBalanceByTickersFunc(cmd *cobra.Command, args []string) {
+func (rc *reitCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) {
 	tickers := args
 	purchaseBalance := rc.purchaseBalanceService.PurchaseBalancesBySecurities([]string{}, tickers, rc.flagAmount)
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
@@ -131,42 +127,40 @@ func (rc *reitCommand) purchaseBalanceByTickersFunc(cmd *cobra.Command, args []s
 }
 
 func (rc *reitCommand) setup() {
-	rc.getReitByTickerCmd = &cobra.Command{
+	getReitByTickerCmd := &cobra.Command{
 		Use:   "get [ticker]",
 		Short: "Get a reit by ticker",
 		Long:  `Get a reit by ticker`,
 		Args:  cobra.ExactArgs(1),
-		Run:   rc.getReitByTickerFunc,
+		Run:   rc.getReitByTickerCmd,
 	}
-	rc.getReitByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	rc.getReitByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	rc.rootCmd.AddCommand(rc.getReitByTickerCmd)
+	getReitByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	getReitByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	rc.rootCmd.AddCommand(getReitByTickerCmd)
 
-	rc.listReitsByTickersCmd = &cobra.Command{
+	listReitsByTickersCmd := &cobra.Command{
 		Use:   "list [tickers ...]",
 		Short: "List reits by tickers",
 		Long:  `List reits by tickers`,
 		Args:  cobra.MinimumNArgs(1),
-		Run:   rc.listReitsByTickersFunc,
+		Run:   rc.listReitsByTickersCmd,
 	}
-	rc.listReitsByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	rc.listReitsByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	rc.rootCmd.AddCommand(rc.listReitsByTickersCmd)
+	listReitsByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	listReitsByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	rc.rootCmd.AddCommand(listReitsByTickersCmd)
 
-	rc.purchaseBalanceByTickersCmd = &cobra.Command{
+	purchaseBalanceByTickersCmd := &cobra.Command{
 		Use:   "purchase-balance [tickers ...] --amount <float>",
 		Short: "Purchase balance by tickers",
 		Long:  `Purchase balance by tickers`,
 		Args:  cobra.MinimumNArgs(1),
-		Run:   rc.purchaseBalanceByTickersFunc,
+		Run:   rc.purchaseBalanceByTickersCmd,
 	}
-
-	rc.purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	rc.purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
-	rc.purchaseBalanceByTickersCmd.Flags().Float64VarP(&rc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
-	rc.purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
-	rc.rootCmd.AddCommand(rc.purchaseBalanceByTickersCmd)
-
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	purchaseBalanceByTickersCmd.Flags().Float64VarP(&rc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
+	purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
+	rc.rootCmd.AddCommand(purchaseBalanceByTickersCmd)
 }
 
 func (rc *reitCommand) InitApp(rootCmd RootCommand) {
