@@ -1,7 +1,6 @@
 package scraping
 
 import (
-	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -59,35 +58,34 @@ func setHeaders(header *http.Header) {
 }
 
 func getHtml(url string, timeout time.Duration) ([]byte, error) {
+	var resultError error
+	var httpResponse *http.Response
+	var bodyReader io.Reader
+	var htmlContent []byte
 	req, _ := http.NewRequest("GET", url, nil)
 	setHeaders(&req.Header)
 	client := &http.Client{
 		Timeout: time.Second * timeout,
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("status=\"%d\" for url=\"%s\"", resp.StatusCode, url)
-	}
-	defer resp.Body.Close()
-	var reader io.Reader
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		reader, err = gzip.NewReader(resp.Body)
-		if err != nil {
-			return nil, err
+	httpResponse, resultError = client.Do(req)
+	if resultError == nil {
+		if httpResponse.StatusCode != 200 {
+			resultError = fmt.Errorf("status=\"%d\" for url=\"%s\"", httpResponse.StatusCode, url)
+		} else {
+			defer httpResponse.Body.Close()
 		}
-		defer reader.(*gzip.Reader).Close()
-	case "deflate":
-		reader = bytes.NewReader([]byte{})
-	default:
-		reader = resp.Body
 	}
-	body, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
+	if resultError == nil {
+		switch httpResponse.Header.Get("Content-Encoding") {
+		case "gzip":
+			bodyReader, resultError = gzip.NewReader(httpResponse.Body)
+			defer bodyReader.(*gzip.Reader).Close()
+		default:
+			bodyReader = httpResponse.Body
+		}
 	}
-	return body, nil
+	if resultError == nil {
+		htmlContent, resultError = io.ReadAll(bodyReader)
+	}
+	return htmlContent, resultError
 }
