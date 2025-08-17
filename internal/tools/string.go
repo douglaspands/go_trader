@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -18,4 +19,16 @@ func ToSnakeCase(input string) string {
 		}
 	}
 	return result.String()
+}
+
+func ToFloat(input string, decimalSeparator string) float64 {
+	thousandSeparator := ","
+	if strings.Contains(decimalSeparator, ",") {
+		thousandSeparator = "."
+	}
+	value, err := strconv.ParseFloat(strings.ReplaceAll(strings.ReplaceAll(input, thousandSeparator, ""), decimalSeparator, "."), 64)
+	if err != nil {
+		return 0.0
+	}
+	return value
 }

@@ -132,7 +132,6 @@ func (sc *stockCommand) setup() {
 		Args:  cobra.ExactArgs(1),
 		Run:   sc.getStockByTickerCmd,
 	}
-
 	getStockByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
 	getStockByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
 	sc.rootCmd.AddCommand(getStockByTickerCmd)
@@ -144,7 +143,6 @@ func (sc *stockCommand) setup() {
 		Args:  cobra.MinimumNArgs(1),
 		Run:   sc.listStocksByTickersCmd,
 	}
-
 	listStocksByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
 	listStocksByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
 	sc.rootCmd.AddCommand(listStocksByTickersCmd)
@@ -156,7 +154,6 @@ func (sc *stockCommand) setup() {
 		Args:  cobra.MinimumNArgs(1),
 		Run:   sc.purchaseBalanceByTickersCmd,
 	}
-
 	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
 	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
 	purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")

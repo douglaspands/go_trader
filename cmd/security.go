@@ -84,7 +84,6 @@ func (sc *securityCommand) setup() {
 	purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
 	purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
 	sc.rootCmd.AddCommand(purchaseBalanceByTickersCmd)
-
 }
 
 func (sc *securityCommand) InitApp(rootCmd RootCommand) {

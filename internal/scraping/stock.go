@@ -3,11 +3,11 @@ package scraping
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 	"trader/internal/config"
 	"trader/internal/resource"
+	"trader/internal/tools"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
@@ -44,12 +44,9 @@ func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, er
 	}
 
 	n = htmlquery.FindOne(doc, `//div[@title="Valor atual do ativo"]/strong/text()`)
-	var price float64
+	var price float64 = 0.0
 	if n != nil {
-		price, err = strconv.ParseFloat(strings.ReplaceAll(n.Data, ",", "."), 64)
-		if err != nil {
-			return nil, err
-		}
+		price = tools.ToFloat(n.Data, ",")
 	}
 
 	n = htmlquery.FindOne(doc, `//*[@id='company-section']/div[1]/div/div[1]/div[2]/h4/small/text()`)

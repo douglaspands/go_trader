@@ -7,11 +7,17 @@ build/windows:
 build/darwin:
 	GOARCH=arm64 GOOS=darwin go build -trimpath -o ./trader main.go
 
+deps/tidy:
+	go mod tidy
+
+deps/sync: deps/tidy
+deps/cleanup: deps/tidy
+
 test/unit:
 	go test -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
 
 test/coverage:
 	go tool cover -html=coverage.out
 
-test/all: test/unit test/coverage
-
+test/unit/coverage: test/unit test/coverage
