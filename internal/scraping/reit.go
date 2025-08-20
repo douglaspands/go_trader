@@ -30,10 +30,7 @@ func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, erro
 		return nil, err
 	}
 
-	doc, err := htmlquery.Parse(bytes.NewReader(htmlDoc))
-	if err != nil {
-		return nil, err
-	}
+	doc, _ := htmlquery.Parse(bytes.NewReader(htmlDoc))
 
 	var n *html.Node
 	n = htmlquery.FindOne(doc, "//h1[@class='lh-4']/small/text()")

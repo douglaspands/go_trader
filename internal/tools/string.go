@@ -6,16 +6,33 @@ import (
 	"unicode"
 )
 
-func ToSnakeCase(input string) string {
+func ToSnakeCase(text string) string {
 	var result strings.Builder
-	for i, r := range input {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				result.WriteRune('_')
+	var char rune
+	for i, r := range text {
+		if unicode.IsLetter(r) {
+			if unicode.IsUpper(r) {
+				if i > 0 && char != 0 && char != '_' {
+					result.WriteRune('_')
+				}
+				char = unicode.ToLower(r)
+			} else {
+				char = r
 			}
-			result.WriteRune(unicode.ToLower(r))
+			result.WriteRune(char)
 		} else {
-			result.WriteRune(r)
+			if unicode.IsNumber(r) {
+				if unicode.IsLetter(char) {
+					result.WriteRune('_')
+				}
+				char = r
+				result.WriteRune(char)
+			} else {
+				if i > 0 && char != 0 && char != '_' {
+					char = '_'
+					result.WriteRune(char)
+				}
+			}
 		}
 	}
 	return result.String()

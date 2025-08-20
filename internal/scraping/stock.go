@@ -31,10 +31,7 @@ func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, er
 		return nil, err
 	}
 
-	doc, err := htmlquery.Parse(bytes.NewReader(htmlDoc))
-	if err != nil {
-		return nil, err
-	}
+	doc, _ := htmlquery.Parse(bytes.NewReader(htmlDoc))
 
 	var n *html.Node
 	n = htmlquery.FindOne(doc, "//h1[@title]")
