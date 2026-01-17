@@ -26,7 +26,8 @@ type stockScraping struct {
 func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, error) {
 
 	url := fmt.Sprintf("%s/acoes/%s", ss.url, strings.ToLower(ticker))
-	htmlDoc, err := getHtml(url, ss.config.GetScrapingTimeout())
+	timeout := ss.config.GetScrapingTimeout()
+	htmlDoc, err := getHtml(url, timeout)
 	if err != nil {
 		return nil, err
 	}

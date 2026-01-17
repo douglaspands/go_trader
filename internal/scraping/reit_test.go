@@ -21,6 +21,20 @@ func TestGetReitByTickerOk(t *testing.T) {
 	}
 }
 
+func TestGetReitByTickerNotFound(t *testing.T) {
+	// GIVEN
+	ticker := "XXXX00"
+
+	// THEN
+	reitScraping := scraping.NewReitScraping(config.NewConfig())
+	_, err := reitScraping.GetReitByTicker(ticker)
+
+	// WHEN
+	if err == nil {
+		t.Errorf(`expected error but received nil`)
+	}
+}
+
 func TestListReitsByTickersOk(t *testing.T) {
 	// GIVEN
 	tickers := []string{"HTMX11", "PORD11"}

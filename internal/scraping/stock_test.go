@@ -21,6 +21,20 @@ func TestGetStockByTickerOk(t *testing.T) {
 	}
 }
 
+func TestGetStockByTickerNotFound(t *testing.T) {
+	// GIVEN
+	ticker := "XXXX0"
+
+	// THEN
+	stockScraping := scraping.NewStockScraping(config.NewConfig())
+	_, err := stockScraping.GetStockByTicker(ticker)
+
+	// WHEN
+	if err == nil {
+		t.Errorf(`expected error but received nil`)
+	}
+}
+
 func TestListStocksByTickersOk(t *testing.T) {
 	// GIVEN
 	tickers := []string{"ITSA3", "BBDC3", "VALE3", "ABEV3", "PETR4", "WEGE3", "IGTA3", "B3SA3"}

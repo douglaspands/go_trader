@@ -13,6 +13,10 @@ import (
 	"golang.org/x/net/html"
 )
 
+const (
+	REIT_TICKER_NOT_FOUND_MESSAGE = "Não encontramos o que você está procurando"
+)
+
 type ReitScraping interface {
 	GetReitByTicker(ticker string) (*resource.Security, error)
 	ListReitsByTickers(tickers []string) []*resource.Security
@@ -25,15 +29,20 @@ type reitScraping struct {
 func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, error) {
 
 	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
-	htmlDoc, err := getHtml(url, rs.config.GetScrapingTimeout())
-	if err != nil {
-		return nil, err
-	}
+	timeout := rs.config.GetScrapingTimeout()
+	htmlDoc, _ := getHtml(url, timeout)
 
 	doc, _ := htmlquery.Parse(bytes.NewReader(htmlDoc))
 
+	ns := htmlquery.Find(doc, `//*[@id="main-2"]/section/div/h1/text()`)
+	for _, n := range ns {
+		if strings.TrimSpace(n.Data) == REIT_TICKER_NOT_FOUND_MESSAGE {
+			return nil, fmt.Errorf("ticker not found for url=\"%s\"", url)
+		}
+	}
+
 	var n *html.Node
-	n = htmlquery.FindOne(doc, "//h1[@class='lh-4']/small/text()")
+	n = htmlquery.FindOne(doc, `//h1[@class='lh-4']/small/text()`)
 	var name string
 	if n != nil {
 		name = strings.TrimSpace(n.Data)
