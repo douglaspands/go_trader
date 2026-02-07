@@ -73,15 +73,14 @@ func (pb *purchaseBalanceService) PurchaseBalance(securities []*resource.Securit
 		return securitiesPurchaseSort[i].Security.Price < securitiesPurchaseSort[j].Security.Price
 	})
 	for {
-		if remainingBalance >= priceMin {
-			for i := range securityCount {
-				if remainingBalance >= securitiesPurchaseSort[i].Security.Price {
-					securitiesPurchaseSort[i].Count += 1
-					remainingBalance = remainingBalance - securitiesPurchaseSort[i].Security.Price
-				}
-			}
-		} else {
+		if remainingBalance < priceMin {
 			break
+		}
+		for i := range securityCount {
+			if remainingBalance >= securitiesPurchaseSort[i].Security.Price {
+				securitiesPurchaseSort[i].Count += 1
+				remainingBalance = remainingBalance - securitiesPurchaseSort[i].Security.Price
+			}
 		}
 	}
 	return &resource.PurchaseBalance{SecuritiesBalance: securitiesPurchase, AmountInvested: amountInvested}
