@@ -1,3 +1,5 @@
+//go:build integration
+
 package scraping_test
 
 import (

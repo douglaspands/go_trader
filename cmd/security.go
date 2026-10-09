@@ -1,8 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"strings"
+	"errors"
 	"trader/internal/common"
 	"trader/internal/service"
 	"trader/internal/tools"
@@ -22,19 +21,21 @@ type securityCommand struct {
 	rootCmd *cobra.Command
 	// Flags
 	flagAmount float64
+	noColor    bool
+	csv        bool
 	flagStocks string
 	flagReits  string
 }
 
-func (sc *securityCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) {
-	stocks := strings.Split(sc.flagStocks, ",")
-	reits := strings.Split(sc.flagReits, ",")
+func (sc *securityCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) error {
+	stocks := tools.SplitList(sc.flagStocks, ",")
+	reits := tools.SplitList(sc.flagReits, ",")
 	purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, sc.flagAmount)
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
-		fmt.Println("Error: tickers not found!")
-		return
+		cmd.SilenceUsage = true
+		return errors.New("tickers not found!")
 	}
-	t := common.NewTableWriter(flagNoColor)
+	t := common.NewTableWriter(sc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"TICKER", "TYPE", "PRICE", "COUNT", "TOTAL", "CURRENCY", "CAPTURED AT"})
 	currency := purchaseBalance.SecuritiesBalance[0].Security.Currency.String()
 	for _, purchase := range purchaseBalance.SecuritiesBalance {
@@ -63,11 +64,8 @@ func (sc *securityCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args 
 	t.AppendFooter(table.Row{"", "", "", purchaseBalance.TotalCount(), tools.TableRowValue(purchaseBalance.AmountSpent()), currency, "SPENT AMOUNT"})
 	t.AppendFooter(table.Row{"", "", "", "", tools.TableRowValue(purchaseBalance.RemainingBalance()), currency, "REMAINING AMOUNT"})
 	t.SetIndexColumn(1)
-	if flagCsv {
-		t.RenderCSV()
-	} else {
-		t.Render()
-	}
+	render(t, sc.csv)
+	return nil
 }
 
 func (sc *securityCommand) setup() {
@@ -75,14 +73,14 @@ func (sc *securityCommand) setup() {
 		Use:   "purchase-balance --stocks [tickers ...] --reits [tickers ...] --amount <float>",
 		Short: "Purchase balance by tickers",
 		Long:  `Purchase balance by tickers`,
-		Run:   sc.purchaseBalanceByTickersCmd,
+		RunE:  sc.purchaseBalanceByTickersCmd,
 	}
-	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&sc.noColor, "no-color", false, "Output without color")
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&sc.csv, "csv", false, "Output csv format")
 	purchaseBalanceByTickersCmd.Flags().StringVarP(&sc.flagStocks, "stocks", "s", "", "List of stocks to purchase [ticker1,ticker2...] (required)")
 	purchaseBalanceByTickersCmd.Flags().StringVarP(&sc.flagReits, "reits", "r", "", "List of REITs to purchase [ticker1,ticker2...] (required)")
 	purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
-	purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
+	purchaseBalanceByTickersCmd.MarkFlagRequired("amount")
 	sc.rootCmd.AddCommand(purchaseBalanceByTickersCmd)
 }
 

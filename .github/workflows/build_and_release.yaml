@@ -18,17 +18,36 @@ permissions:
 
 jobs:
 
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: Unit tests
+      run: go test -race ./...
+
   linux-build:
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version-file: go.mod
 
     - name: Generate executable
       run: |
@@ -39,26 +58,23 @@ jobs:
         tar -cjvf ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2 ./trader
 
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
-        asset_name: trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2
-        asset_content_type: application/x-bzip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload "${{ env.TAG_NAME }}" ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2 --clobber
 
   windows-build:
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version-file: go.mod
 
     - name: Generate executable
       run: |
@@ -69,26 +85,23 @@ jobs:
         zip -r ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip ./trader.exe
 
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip
-        asset_name: trader-${{ env.TAG_NAME }}-windows-x86_64.zip
-        asset_content_type: application/zip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload "${{ env.TAG_NAME }}" ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip --clobber
 
   darwin-build:
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
     - name: Check out repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.24'
+        go-version-file: go.mod
 
     - name: Generate executable
       run: |
@@ -99,11 +112,7 @@ jobs:
         tar -cjvf ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2 ./trader
 
     - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2
-        asset_name: trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2
-        asset_content_type: application/x-bzip
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload "${{ env.TAG_NAME }}" ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2 --clobber

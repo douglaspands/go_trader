@@ -19,7 +19,7 @@ type rootCommand struct {
 }
 
 func (rc *rootCommand) getVersionCmd(cmd *cobra.Command, args []string) {
-	fmt.Printf("%s\n", rc.config.GetVersion())
+	fmt.Fprintln(cmd.OutOrStdout(), rc.config.GetVersion())
 }
 
 func (rc *rootCommand) setup() {

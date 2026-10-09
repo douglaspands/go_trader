@@ -27,12 +27,21 @@ type reitScraping struct {
 }
 
 func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, error) {
+	if err := validateTicker(ticker); err != nil {
+		return nil, err
+	}
 
-	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
+	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", rs.url, strings.ToLower(ticker))
 	timeout := rs.config.GetScrapingTimeout()
-	htmlDoc, _ := getHtml(url, timeout)
+	htmlDoc, err := getHtml(url, timeout)
+	if err != nil {
+		return nil, err
+	}
 
-	doc, _ := htmlquery.Parse(bytes.NewReader(htmlDoc))
+	doc, err := htmlquery.Parse(bytes.NewReader(htmlDoc))
+	if err != nil {
+		return nil, err
+	}
 
 	ns := htmlquery.Find(doc, `//*[@id="main-2"]/section/div/h1/text()`)
 	for _, n := range ns {
@@ -63,7 +72,7 @@ func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, erro
 	n = htmlquery.FindOne(doc, `//div[@title="Valor atual do ativo"]/strong/text()`)
 	var price float64 = 0.0
 	if n != nil {
-		price = tools.ToFloat(n.Data, ",")
+		price = tools.ToFloat(strings.TrimSpace(n.Data), ",")
 	}
 
 	n = htmlquery.FindOne(doc, `//*[@id='fund-section']/div/div/div[3]/div/div[2]/div[1]/div/strong/text()`)

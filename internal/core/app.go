@@ -1,7 +1,6 @@
 package core
 
 import (
-	"os"
 	"trader/cmd"
 	"trader/internal/config"
 	"trader/internal/scraping"
@@ -9,7 +8,7 @@ import (
 )
 
 type App interface {
-	Run()
+	Run(args []string) int
 }
 
 type app struct {
@@ -40,12 +39,13 @@ func (a *app) setup() {
 	a.rootCommand = rootCommand
 }
 
-func (a *app) Run() {
+func (a *app) Run(args []string) int {
 	a.setup()
-	err := a.rootCommand.Execute()
-	if err != nil {
-		os.Exit(1)
+	a.rootCommand.GetCobraCommand().SetArgs(args)
+	if err := a.rootCommand.Execute(); err != nil {
+		return 1
 	}
+	return 0
 }
 
 func NewApp() App {

@@ -36,14 +36,37 @@ Use "trader [command] --help" for more information about a command.
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
-	main()
+	code := run([]string{})
 
 	// WHEN
 	os.Stdout = oldStdout
 	w.Close()
 	out, _ := io.ReadAll(r)
 	outString := string(out)
+	if code != 0 {
+		t.Errorf("Exit code expected: 0, but received: %d", code)
+	}
 	if outString != expected {
 		t.Errorf("Output expected: \"%s\", but received: \"%s\"", expected, outString)
+	}
+}
+
+func TestMainExitsWithRunCode(t *testing.T) {
+	// GIVEN
+	oldArgs, oldExit, oldStdout := os.Args, exit, os.Stdout
+	defer func() { os.Args, exit, os.Stdout = oldArgs, oldExit, oldStdout }()
+	devNull, _ := os.Open(os.DevNull)
+	defer devNull.Close()
+	os.Stdout = devNull
+	os.Args = []string{"trader", "version"}
+	code := -1
+	exit = func(c int) { code = c }
+
+	// WHEN
+	main()
+
+	// THEN
+	if code != 0 {
+		t.Errorf("Exit code expected: 0, but received: %d", code)
 	}
 }

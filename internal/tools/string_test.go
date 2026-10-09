@@ -1,55 +1,33 @@
 package tools_test
 
 import (
+	"reflect"
 	"testing"
 	"trader/internal/tools"
 )
 
-func TestToSnakeCaseOk01(t *testing.T) {
-	// EXPECT
-	expect_text := "get_cheese"
-
-	// GIVEN
-	text := "getCheese"
-
-	// THEN
-	result := tools.ToSnakeCase(text)
-
-	// WHEN
-	if result != expect_text {
-		t.Errorf(`expected at "%s" and received at %s`, expect_text, result)
+func TestSplitList(t *testing.T) {
+	cases := []struct {
+		name   string
+		input  string
+		expect []string
+	}{
+		{"empty", "", []string{}},
+		{"single", "A", []string{"A"}},
+		{"two", "A,B", []string{"A", "B"}},
+		{"spaces and empty entries", " A , ,B ", []string{"A", "B"}},
+		{"only separator", ",", []string{}},
 	}
-}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// WHEN
+			result := tools.SplitList(c.input, ",")
 
-func TestToSnakeCaseOk02(t *testing.T) {
-	// EXPECT
-	expect_text := "get_cheese"
-
-	// GIVEN
-	text := "Get Cheese"
-
-	// THEN
-	result := tools.ToSnakeCase(text)
-
-	// WHEN
-	if result != expect_text {
-		t.Errorf(`expected at "%s" and received at %s`, expect_text, result)
-	}
-}
-
-func TestToSnakeCaseOk03(t *testing.T) {
-	// EXPECT
-	expect_text := "get_cheese_01_02"
-
-	// GIVEN
-	text := " Get Cheese01 02"
-
-	// THEN
-	result := tools.ToSnakeCase(text)
-
-	// WHEN
-	if result != expect_text {
-		t.Errorf(`expected at "%s" and received at %s`, expect_text, result)
+			// THEN
+			if !reflect.DeepEqual(result, c.expect) {
+				t.Errorf("expected %q and received %q", c.expect, result)
+			}
+		})
 	}
 }
 

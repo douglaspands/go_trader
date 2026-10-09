@@ -1,8 +1,16 @@
 package main
 
-import "trader/internal/core"
+import (
+	"os"
+	"trader/internal/core"
+)
+
+var exit = os.Exit
+
+func run(args []string) int {
+	return core.NewApp().Run(args)
+}
 
 func main() {
-	app := core.NewApp()
-	app.Run()
+	exit(run(os.Args[1:]))
 }

@@ -8,8 +8,8 @@ type Config interface {
 }
 
 type config struct {
-	version            string
-	scrapingTimeoutTtl int64
+	version         string
+	scrapingTimeout time.Duration
 }
 
 func (c *config) GetVersion() string {
@@ -17,14 +17,14 @@ func (c *config) GetVersion() string {
 }
 
 func (c *config) GetScrapingTimeout() time.Duration {
-	return time.Duration(c.scrapingTimeoutTtl)
+	return c.scrapingTimeout
 }
 
 var version string = "development"
 
 func NewConfig() Config {
 	return &config{
-		version:            version,
-		scrapingTimeoutTtl: 60,
+		version:         version,
+		scrapingTimeout: 60 * time.Second,
 	}
 }

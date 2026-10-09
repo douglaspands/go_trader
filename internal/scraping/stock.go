@@ -24,6 +24,9 @@ type stockScraping struct {
 }
 
 func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, error) {
+	if err := validateTicker(ticker); err != nil {
+		return nil, err
+	}
 
 	url := fmt.Sprintf("%s/acoes/%s", ss.url, strings.ToLower(ticker))
 	timeout := ss.config.GetScrapingTimeout()
@@ -32,19 +35,24 @@ func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, er
 		return nil, err
 	}
 
-	doc, _ := htmlquery.Parse(bytes.NewReader(htmlDoc))
+	doc, err := htmlquery.Parse(bytes.NewReader(htmlDoc))
+	if err != nil {
+		return nil, err
+	}
 
 	var n *html.Node
 	n = htmlquery.FindOne(doc, "//h1[@title]")
 	var name string
 	if n != nil {
-		name = strings.TrimSpace(strings.Split(htmlquery.SelectAttr(n, "title"), "-")[1])
+		if parts := strings.SplitN(htmlquery.SelectAttr(n, "title"), "-", 2); len(parts) == 2 {
+			name = strings.TrimSpace(parts[1])
+		}
 	}
 
 	n = htmlquery.FindOne(doc, `//div[@title="Valor atual do ativo"]/strong/text()`)
 	var price float64 = 0.0
 	if n != nil {
-		price = tools.ToFloat(n.Data, ",")
+		price = tools.ToFloat(strings.TrimSpace(n.Data), ",")
 	}
 
 	n = htmlquery.FindOne(doc, `//*[@id='company-section']/div[1]/div/div[1]/div[2]/h4/small/text()`)

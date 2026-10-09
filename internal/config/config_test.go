@@ -14,7 +14,7 @@ func TestGetConfigOk(t *testing.T) {
 	if config.GetVersion() != "development" {
 		t.Errorf(`expected at "%s" and received at %s`, "development", config.GetVersion())
 	}
-	if config.GetScrapingTimeout() != time.Duration(60) {
-		t.Errorf(`expected at "%s" and received at %s`, time.Duration(60), config.GetScrapingTimeout())
+	if config.GetScrapingTimeout() != 60*time.Second {
+		t.Errorf(`expected at "%s" and received at %s`, 60*time.Second, config.GetScrapingTimeout())
 	}
 }

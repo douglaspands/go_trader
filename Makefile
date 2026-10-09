@@ -14,8 +14,14 @@ deps/sync: deps/tidy
 deps/cleanup: deps/tidy
 
 test/unit:
-	go test -coverprofile=coverage.out ./...
+	go test -coverpkg=./... -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
+
+test/integration:
+	go test -tags integration ./internal/scraping/...
+
+test/vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 test/coverage:
 	go tool cover -html=coverage.out

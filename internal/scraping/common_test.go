@@ -39,7 +39,7 @@ func TestGetHtml(t *testing.T) {
 		}))
 		defer server.Close()
 
-		content, err := getHtml(server.URL, 1)
+		content, err := getHtml(server.URL, time.Second)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -58,7 +58,7 @@ func TestGetHtml(t *testing.T) {
 		}))
 		defer server.Close()
 
-		content, err := getHtml(server.URL, 1)
+		content, err := getHtml(server.URL, time.Second)
 		if err != nil {
 			t.Fatalf("Expected no error, got %v", err)
 		}
@@ -73,7 +73,7 @@ func TestGetHtml(t *testing.T) {
 		}))
 		defer server.Close()
 
-		_, err := getHtml(server.URL, 1)
+		_, err := getHtml(server.URL, time.Second)
 		if err == nil {
 			t.Fatal("Expected error, got nil")
 		}
@@ -90,9 +90,72 @@ func TestGetHtml(t *testing.T) {
 		defer server.Close()
 
 		// Set timeout shorter than the sleep
-		_, err := getHtml(server.URL, 1)
+		_, err := getHtml(server.URL, time.Second)
 		if err == nil {
 			t.Fatal("Expected timeout error, got nil")
+		}
+	})
+
+	t.Run("InvalidUrl", func(t *testing.T) {
+		content, err := getHtml("http://example.com/%zz", time.Second)
+		if err == nil {
+			t.Fatal("Expected error, got nil")
+		}
+		if content != nil {
+			t.Errorf("Expected no content, got %s", content)
+		}
+	})
+
+	t.Run("RequestFailure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		url := server.URL
+		server.Close()
+
+		_, err := getHtml(url, time.Second)
+		if err == nil {
+			t.Fatal("Expected error, got nil")
+		}
+	})
+
+	t.Run("InvalidGzip", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Encoding", "gzip")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("this is not gzip"))
+		}))
+		defer server.Close()
+
+		content, err := getHtml(server.URL, time.Second)
+		if err == nil {
+			t.Fatal("Expected error, got nil")
+		}
+		if content != nil {
+			t.Errorf("Expected no content, got %s", content)
+		}
+	})
+
+	t.Run("BodyClosedOnStatusError", func(t *testing.T) {
+		closed := make(chan struct{})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("partial body"))
+			w.(http.Flusher).Flush()
+			select {
+			case <-r.Context().Done():
+				close(closed)
+			case <-time.After(5 * time.Second):
+			}
+		}))
+		defer server.Close()
+
+		_, err := getHtml(server.URL, 10*time.Second)
+		if err == nil {
+			t.Fatal("Expected error, got nil")
+		}
+		select {
+		case <-closed:
+		case <-time.After(2 * time.Second):
+			t.Error("Expected connection to be closed after a status error")
 		}
 	})
 }

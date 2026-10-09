@@ -1,6 +1,8 @@
 package service_test
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 	"trader/internal/resource"
 	"trader/internal/service"
@@ -82,63 +84,148 @@ func TestPurchaseBalance_StandardDistribution(t *testing.T) {
 	}
 }
 
-// func TestPurchaseBalance_UnevenDistribution_HighPrice(t *testing.T) {
-// 	// GIVEN
-// 	// Split is 500 each.
-// 	// S1 needs 500, price 600 -> count 0 by split, goes to expensive list?
-// 	// Wait logic: securityValue = 1000/2 = 500.
-// 	// S1 (600): 500/600 < 1 -> expensive list.
-// 	// S2 (100): 500/100 = 5 -> normal buy. remaining from split? logic doesn't subtract from split, it subtracts from total remaining.
-// 	// Logic trace:
-// 	// Init: remaining = 1000.
-// 	// Loop 1:
-// 	// S1: < 1 -> expensive list.
-// 	// S2: count 5 (500). remaining = 1000 - 500 = 500.
-// 	// Loop 2 (expensive):
-// 	// S1: remaining (500) < 600 -> can't buy.
-// 	// Loop 3 (remaining balance re-loop):
-// 	// remaining 500.
-// 	// S2 (100) < 500 -> buy 1 more. rem=400.
-// 	// ... buys S2 until rem=0?
-// 	// S2 is in securitiesPurchaseSort.
-// 	// Logic line 75: sort by price. S2 checked.
-// 	// It will keep buying S2.
+func tickersOf(result *resource.PurchaseBalance) []string {
+	tickers := make([]string, 0)
+	for _, p := range result.SecuritiesBalance {
+		tickers = append(tickers, p.Security.Ticker)
+	}
+	return tickers
+}
 
-// 	securities := []*resource.Security{
-// 		{Ticker: "High", Price: 600},
-// 		{Ticker: "Low", Price: 100},
-// 	}
-// 	amountInvested := 1000.0
+func countOf(result *resource.PurchaseBalance, ticker string) int {
+	for _, p := range result.SecuritiesBalance {
+		if p.Security.Ticker == ticker {
+			return p.Count
+		}
+	}
+	return 0
+}
 
-// 	svc := service.NewPurchaseBalanceService(&mockStockService{}, &mockReitService{})
+func TestPurchaseBalance_UnevenDistribution_HighPrice(t *testing.T) {
+	// GIVEN
+	securities := []*resource.Security{
+		{Ticker: "High", Price: 600},
+		{Ticker: "Low", Price: 100},
+	}
+	svc := service.NewPurchaseBalanceService(&mockStockService{}, &mockReitService{})
 
-// 	// WHEN
-// 	result := svc.PurchaseBalance(securities, amountInvested)
+	// WHEN
+	result := svc.PurchaseBalance(securities, 1000)
 
-// 	// THEN
-// 	// S2 should soak up the rest?
-// 	// S1: 0
-// 	// S2: 5 initially + 5 from remaining loop? = 10 total?
-// 	// Total spent: 10 * 100 = 1000.
+	// THEN
+	if !reflect.DeepEqual(tickersOf(result), []string{"Low", "High"}) {
+		t.Errorf("Expected order [Low High], got %v", tickersOf(result))
+	}
+	if countOf(result, "Low") != 4 || countOf(result, "High") != 1 {
+		t.Errorf("Expected Low=4 and High=1, got Low=%d High=%d", countOf(result, "Low"), countOf(result, "High"))
+	}
+	if result.RemainingBalance() != 0 {
+		t.Errorf("Expected remaining balance 0, got %.2f", result.RemainingBalance())
+	}
+}
 
-// 	countHigh := 0
-// 	countLow := 0
-// 	for _, p := range result.SecuritiesBalance {
-// 		if p.Security.Ticker == "High" {
-// 			countHigh = p.Count
-// 		}
-// 		if p.Security.Ticker == "Low" {
-// 			countLow = p.Count
-// 		}
-// 	}
+func TestPurchaseBalance_ExpensiveDoesNotFit(t *testing.T) {
+	// GIVEN
+	securities := []*resource.Security{
+		{Ticker: "High", Price: 900},
+		{Ticker: "Low", Price: 100},
+	}
+	svc := service.NewPurchaseBalanceService(&mockStockService{}, &mockReitService{})
 
-// 	if countHigh != 0 {
-// 		t.Errorf("Expected 0 High, got %d", countHigh)
-// 	}
-// 	if countLow != 10 {
-// 		t.Errorf("Expected 10 Low, got %d", countLow)
-// 	}
-// }
+	// WHEN
+	result := svc.PurchaseBalance(securities, 1000)
+
+	// THEN
+	if !reflect.DeepEqual(tickersOf(result), []string{"Low"}) {
+		t.Errorf("Expected only Low, got %v", tickersOf(result))
+	}
+	if countOf(result, "Low") != 10 {
+		t.Errorf("Expected 10 Low, got %d", countOf(result, "Low"))
+	}
+	if result.RemainingBalance() != 0 {
+		t.Errorf("Expected remaining balance 0, got %.2f", result.RemainingBalance())
+	}
+}
+
+func TestPurchaseBalance_ZeroPriceIgnored(t *testing.T) {
+	// GIVEN
+	securities := []*resource.Security{
+		{Ticker: "ZERO", Price: 0},
+		nil,
+		{Ticker: "A", Price: 10},
+	}
+	svc := service.NewPurchaseBalanceService(&mockStockService{}, &mockReitService{})
+
+	// WHEN
+	result := svc.PurchaseBalance(securities, 100)
+
+	// THEN
+	if !reflect.DeepEqual(tickersOf(result), []string{"A"}) {
+		t.Errorf("Expected only A, got %v", tickersOf(result))
+	}
+	if countOf(result, "A") != 10 {
+		t.Errorf("Expected 10 A, got %d", countOf(result, "A"))
+	}
+	if result.RemainingBalance() != 0 {
+		t.Errorf("Expected remaining balance 0, got %.2f", result.RemainingBalance())
+	}
+}
+
+func TestPurchaseBalance_EmptyList(t *testing.T) {
+	// GIVEN
+	svc := service.NewPurchaseBalanceService(&mockStockService{}, &mockReitService{})
+
+	// WHEN
+	result := svc.PurchaseBalance(nil, 100)
+
+	// THEN
+	if len(result.SecuritiesBalance) != 0 {
+		t.Errorf("Expected no securities, got %v", tickersOf(result))
+	}
+	if result.RemainingBalance() != 100 {
+		t.Errorf("Expected remaining balance 100, got %.2f", result.RemainingBalance())
+	}
+}
+
+func TestPurchaseBalance_RemainingBalanceProperty(t *testing.T) {
+	cases := []struct {
+		prices []float64
+		amount float64
+	}{
+		{[]float64{10, 10}, 100},
+		{[]float64{600, 100}, 1000},
+		{[]float64{900, 100}, 1000},
+		{[]float64{37.5, 12.2, 99.9}, 1000},
+		{[]float64{5.25, 7.75, 130, 48.1}, 2500.55},
+		{[]float64{1000, 2000, 3000}, 2500},
+		{[]float64{0.5, 333.33, 71.4}, 777.77},
+		{[]float64{25}, 100},
+		{[]float64{3, 0, 7, -1}, 50},
+		{[]float64{150.9, 151.1}, 300},
+	}
+	svc := service.NewPurchaseBalanceService(&mockStockService{}, &mockReitService{})
+	for _, c := range cases {
+		// GIVEN
+		securities := make([]*resource.Security, 0)
+		for i, price := range c.prices {
+			securities = append(securities, &resource.Security{Ticker: fmt.Sprintf("S%d", i), Price: price})
+		}
+
+		// WHEN
+		result := svc.PurchaseBalance(securities, c.amount)
+
+		// THEN
+		remaining := result.RemainingBalance()
+		if remaining < -1e-9 {
+			t.Errorf("prices %v amount %.2f: negative remaining balance %.4f", c.prices, c.amount, remaining)
+		}
+		for _, security := range securities {
+			if security.Price > 0 && remaining >= security.Price {
+				t.Errorf("prices %v amount %.2f: remaining balance %.4f is not lower than price %.2f", c.prices, c.amount, remaining, security.Price)
+			}
+		}
+	}
+}
 
 func TestPurchaseBalancesBySecurities(t *testing.T) {
 	// GIVEN
@@ -177,5 +264,29 @@ func TestPurchaseBalancesBySecurities(t *testing.T) {
 	// HGLG11 (100): 5 shares.
 	if result.TotalCount() != 15 {
 		t.Errorf("Expected 15 total, got %d", result.TotalCount())
+	}
+}
+
+func TestPurchaseBalancesBySecurities_TickerWithoutQuote(t *testing.T) {
+	// GIVEN
+	mockStockSvc := &mockStockService{
+		ListStocksByTickersFunc: func(tickers []string) []*resource.Security { return nil },
+	}
+	mockReitSvc := &mockReitService{
+		ListReitsByTickersFunc: func(tickers []string) []*resource.Security {
+			return []*resource.Security{{Ticker: "HGLG11", Price: 100}}
+		},
+	}
+	svc := service.NewPurchaseBalanceService(mockStockSvc, mockReitSvc)
+
+	// WHEN
+	result := svc.PurchaseBalancesBySecurities([]string{"XXXX0"}, []string{"HGLG11"}, 1000)
+
+	// THEN
+	if !reflect.DeepEqual(tickersOf(result), []string{"HGLG11"}) {
+		t.Errorf("Expected only HGLG11, got %v", tickersOf(result))
+	}
+	if countOf(result, "HGLG11") != 10 {
+		t.Errorf("Expected 10 HGLG11, got %d", countOf(result, "HGLG11"))
 	}
 }

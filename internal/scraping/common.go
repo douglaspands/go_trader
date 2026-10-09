@@ -6,8 +6,18 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"time"
 )
+
+var tickerPattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
+
+func validateTicker(ticker string) error {
+	if !tickerPattern.MatchString(ticker) {
+		return fmt.Errorf("invalid ticker=\"%s\"", ticker)
+	}
+	return nil
+}
 
 var userAgents = []string{
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
@@ -58,34 +68,30 @@ func setHeaders(header *http.Header) {
 }
 
 func getHtml(url string, timeout time.Duration) ([]byte, error) {
-	var resultError error
-	var httpResponse *http.Response
-	var bodyReader io.Reader
-	var htmlContent []byte
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 	setHeaders(&req.Header)
 	client := &http.Client{
-		Timeout: time.Second * timeout,
+		Timeout: timeout,
 	}
-	httpResponse, resultError = client.Do(req)
-	if resultError == nil {
-		if httpResponse.StatusCode != 200 {
-			resultError = fmt.Errorf("status=\"%d\" for url=\"%s\"", httpResponse.StatusCode, url)
-		} else {
-			defer httpResponse.Body.Close()
+	httpResponse, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer httpResponse.Body.Close()
+	if httpResponse.StatusCode != 200 {
+		return nil, fmt.Errorf("status=\"%d\" for url=\"%s\"", httpResponse.StatusCode, url)
+	}
+	var bodyReader io.Reader = httpResponse.Body
+	if httpResponse.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(httpResponse.Body)
+		if err != nil {
+			return nil, err
 		}
+		defer gzipReader.Close()
+		bodyReader = gzipReader
 	}
-	if resultError == nil {
-		switch httpResponse.Header.Get("Content-Encoding") {
-		case "gzip":
-			bodyReader, resultError = gzip.NewReader(httpResponse.Body)
-			defer bodyReader.(*gzip.Reader).Close()
-		default:
-			bodyReader = httpResponse.Body
-		}
-	}
-	if resultError == nil {
-		htmlContent, resultError = io.ReadAll(bodyReader)
-	}
-	return htmlContent, resultError
+	return io.ReadAll(bodyReader)
 }

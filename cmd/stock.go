@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"trader/internal/common"
 	"trader/internal/service"
@@ -22,16 +23,18 @@ type stockCommand struct {
 	rootCmd *cobra.Command
 	// Flags
 	flagAmount float64
+	noColor    bool
+	csv        bool
 }
 
-func (sc *stockCommand) getStockByTickerCmd(cmd *cobra.Command, args []string) {
+func (sc *stockCommand) getStockByTickerCmd(cmd *cobra.Command, args []string) error {
 	ticker := args[0]
 	stock := sc.stockService.GetStockByTicker(ticker)
 	if stock == nil {
-		fmt.Printf("Error: ticker \"%s\" not found!\n", ticker)
-		return
+		cmd.SilenceUsage = true
+		return fmt.Errorf("ticker \"%s\" not found!", ticker)
 	}
-	t := common.NewTableWriter(flagNoColor)
+	t := common.NewTableWriter(sc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"FIELD", "VALUE"})
 	t.AppendRow(table.Row{"Ticker", stock.Ticker})
 	t.AppendRow(table.Row{"Name", stock.Name})
@@ -42,21 +45,18 @@ func (sc *stockCommand) getStockByTickerCmd(cmd *cobra.Command, args []string) {
 	t.AppendRow(table.Row{"Origin", stock.Origin})
 	// t.AppendRow(table.Row{"Description", stock.Description})
 	t.SetIndexColumn(1)
-	if flagCsv {
-		t.RenderCSV()
-	} else {
-		t.Render()
-	}
+	render(t, sc.csv)
+	return nil
 }
 
-func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string) {
+func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string) error {
 	tickers := args
 	stocks := sc.stockService.ListStocksByTickers(tickers)
 	if len(stocks) == 0 {
-		fmt.Println("Error: tickers not found!")
-		return
+		cmd.SilenceUsage = true
+		return errors.New("tickers not found!")
 	}
-	t := common.NewTableWriter(flagNoColor)
+	t := common.NewTableWriter(sc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "PRICE", "CURRENCY", "CAPTURED AT"})
 	for _, stock := range stocks {
 		t.AppendRow(table.Row{stock.Ticker, stock.Name, stock.Document, tools.TableRowValue(stock.Price), stock.Currency.String(), tools.TableRowValue(stock.CapturedAt)})
@@ -74,21 +74,18 @@ func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string
 		},
 	})
 	t.SetIndexColumn(1)
-	if flagCsv {
-		t.RenderCSV()
-	} else {
-		t.Render()
-	}
+	render(t, sc.csv)
+	return nil
 }
 
-func (sc *stockCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) {
+func (sc *stockCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) error {
 	tickers := args
 	purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(tickers, []string{}, sc.flagAmount)
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
-		fmt.Println("Error: tickers not found!")
-		return
+		cmd.SilenceUsage = true
+		return errors.New("tickers not found!")
 	}
-	t := common.NewTableWriter(flagNoColor)
+	t := common.NewTableWriter(sc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"TICKER", "PRICE", "COUNT", "TOTAL", "CURRENCY", "CAPTURED AT"})
 	currency := purchaseBalance.SecuritiesBalance[0].Security.Currency.String()
 	for _, purchase := range purchaseBalance.SecuritiesBalance {
@@ -117,11 +114,8 @@ func (sc *stockCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []s
 	t.AppendFooter(table.Row{"", "", purchaseBalance.TotalCount(), tools.TableRowValue(purchaseBalance.AmountSpent()), currency, "SPENT AMOUNT"})
 	t.AppendFooter(table.Row{"", "", "", tools.TableRowValue(purchaseBalance.RemainingBalance()), currency, "REMAINING AMOUNT"})
 	t.SetIndexColumn(1)
-	if flagCsv {
-		t.RenderCSV()
-	} else {
-		t.Render()
-	}
+	render(t, sc.csv)
+	return nil
 }
 
 func (sc *stockCommand) setup() {
@@ -130,10 +124,10 @@ func (sc *stockCommand) setup() {
 		Short: "Get a stock by ticker",
 		Long:  `Get a stock by ticker`,
 		Args:  cobra.ExactArgs(1),
-		Run:   sc.getStockByTickerCmd,
+		RunE:  sc.getStockByTickerCmd,
 	}
-	getStockByTickerCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	getStockByTickerCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	getStockByTickerCmd.Flags().BoolVar(&sc.noColor, "no-color", false, "Output without color")
+	getStockByTickerCmd.Flags().BoolVar(&sc.csv, "csv", false, "Output csv format")
 	sc.rootCmd.AddCommand(getStockByTickerCmd)
 
 	listStocksByTickersCmd := &cobra.Command{
@@ -141,10 +135,10 @@ func (sc *stockCommand) setup() {
 		Short: "List stocks by tickers",
 		Long:  `List stocks by tickers`,
 		Args:  cobra.MinimumNArgs(1),
-		Run:   sc.listStocksByTickersCmd,
+		RunE:  sc.listStocksByTickersCmd,
 	}
-	listStocksByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	listStocksByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	listStocksByTickersCmd.Flags().BoolVar(&sc.noColor, "no-color", false, "Output without color")
+	listStocksByTickersCmd.Flags().BoolVar(&sc.csv, "csv", false, "Output csv format")
 	sc.rootCmd.AddCommand(listStocksByTickersCmd)
 
 	purchaseBalanceByTickersCmd := &cobra.Command{
@@ -152,12 +146,12 @@ func (sc *stockCommand) setup() {
 		Short: "Purchase balance by tickers",
 		Long:  `Purchase balance by tickers`,
 		Args:  cobra.MinimumNArgs(1),
-		Run:   sc.purchaseBalanceByTickersCmd,
+		RunE:  sc.purchaseBalanceByTickersCmd,
 	}
-	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Output without color")
-	purchaseBalanceByTickersCmd.Flags().BoolVar(&flagCsv, "csv", false, "Output csv format")
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&sc.noColor, "no-color", false, "Output without color")
+	purchaseBalanceByTickersCmd.Flags().BoolVar(&sc.csv, "csv", false, "Output csv format")
 	purchaseBalanceByTickersCmd.Flags().Float64VarP(&sc.flagAmount, "amount", "a", 0.0, "Amount invested (required)")
-	purchaseBalanceByTickersCmd.MarkFlagsRequiredTogether("amount")
+	purchaseBalanceByTickersCmd.MarkFlagRequired("amount")
 	sc.rootCmd.AddCommand(purchaseBalanceByTickersCmd)
 }
 
