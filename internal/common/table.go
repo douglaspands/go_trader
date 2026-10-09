@@ -1,12 +1,12 @@
 package common
 
 import (
-	"os"
+	"io"
 
 	"github.com/jedib0t/go-pretty/v6/table"
 )
 
-func NewTableWriter(noColor bool) table.Writer {
+func NewTableWriter(noColor bool, out io.Writer) table.Writer {
 	var style table.Style
 	if noColor {
 		style = table.StyleDefault
@@ -21,7 +21,7 @@ func NewTableWriter(noColor bool) table.Writer {
 		style = table.StyleColoredBlackOnBlueWhite
 	}
 	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
+	t.SetOutputMirror(out)
 	t.SetStyle(style)
 	return t
 }

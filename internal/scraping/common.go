@@ -1,15 +1,23 @@
 package scraping
 
 import (
-	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"time"
-	"trader/internal/config"
 )
+
+var tickerPattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
+
+func validateTicker(ticker string) error {
+	if !tickerPattern.MatchString(ticker) {
+		return fmt.Errorf("invalid ticker=\"%s\"", ticker)
+	}
+	return nil
+}
 
 var userAgents = []string{
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
@@ -59,45 +67,31 @@ func setHeaders(header *http.Header) {
 	header.Set("Referer", "https://www.google.com/")
 }
 
-func getHtml(url string) ([]byte, error) {
-	config := config.GetConfig()
-
+func getHtml(url string, timeout time.Duration) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 	setHeaders(&req.Header)
-
 	client := &http.Client{
-		Timeout: time.Second * time.Duration(config.ScrapingTimeoutTtl),
+		Timeout: timeout,
 	}
-	resp, err := client.Do(req)
+	httpResponse, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf(`status="%d" for url="%s"`, resp.StatusCode, url)
+	defer httpResponse.Body.Close()
+	if httpResponse.StatusCode != 200 {
+		return nil, fmt.Errorf("status=\"%d\" for url=\"%s\"", httpResponse.StatusCode, url)
 	}
-	defer resp.Body.Close()
-
-	var reader io.Reader
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		reader, err = gzip.NewReader(resp.Body)
+	var bodyReader io.Reader = httpResponse.Body
+	if httpResponse.Header.Get("Content-Encoding") == "gzip" {
+		gzipReader, err := gzip.NewReader(httpResponse.Body)
 		if err != nil {
 			return nil, err
 		}
-		defer reader.(*gzip.Reader).Close()
-	case "deflate":
-		reader = bytes.NewReader([]byte{})
-	default:
-		reader = resp.Body
+		defer gzipReader.Close()
+		bodyReader = gzipReader
 	}
-
-	body, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-
-	return body, nil
+	return io.ReadAll(bodyReader)
 }

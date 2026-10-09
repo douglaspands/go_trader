@@ -3,19 +3,34 @@ package scraping
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
+	"trader/internal/config"
 	"trader/internal/resource"
+	"trader/internal/tools"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
 )
 
-func GetStockByTicker(ticker string) (*resource.Security, error) {
+type StockScraping interface {
+	GetStockByTicker(ticker string) (*resource.Security, error)
+	ListStocksByTickers(tickers []string) []*resource.Security
+}
 
-	url := fmt.Sprintf("%s/acoes/%s", STATUS_INVEST_URL, strings.ToLower(ticker))
-	htmlDoc, err := getHtml(url)
+type stockScraping struct {
+	url    string
+	config config.Config
+}
+
+func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, error) {
+	if err := validateTicker(ticker); err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/acoes/%s", ss.url, strings.ToLower(ticker))
+	timeout := ss.config.GetScrapingTimeout()
+	htmlDoc, err := getHtml(url, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -29,16 +44,15 @@ func GetStockByTicker(ticker string) (*resource.Security, error) {
 	n = htmlquery.FindOne(doc, "//h1[@title]")
 	var name string
 	if n != nil {
-		name = strings.TrimSpace(strings.Split(htmlquery.SelectAttr(n, "title"), "-")[1])
+		if parts := strings.SplitN(htmlquery.SelectAttr(n, "title"), "-", 2); len(parts) == 2 {
+			name = strings.TrimSpace(parts[1])
+		}
 	}
 
 	n = htmlquery.FindOne(doc, `//div[@title="Valor atual do ativo"]/strong/text()`)
-	var price float64
+	var price float64 = 0.0
 	if n != nil {
-		price, err = strconv.ParseFloat(strings.ReplaceAll(n.Data, ",", "."), 64)
-		if err != nil {
-			return nil, err
-		}
+		price = tools.ToFloat(strings.TrimSpace(n.Data), ",")
 	}
 
 	n = htmlquery.FindOne(doc, `//*[@id='company-section']/div[1]/div/div[1]/div[2]/h4/small/text()`)
@@ -69,13 +83,20 @@ func GetStockByTicker(ticker string) (*resource.Security, error) {
 	}, nil
 }
 
-func ListStocksByTickers(tickers []string) []*resource.Security {
+func (ss *stockScraping) ListStocksByTickers(tickers []string) []*resource.Security {
 	var stocks []*resource.Security
 	for _, ticker := range tickers {
-		stock, err := GetStockByTicker(ticker)
+		stock, err := ss.GetStockByTicker(ticker)
 		if err == nil {
 			stocks = append(stocks, stock)
 		}
 	}
 	return stocks
+}
+
+func NewStockScraping(config config.Config) StockScraping {
+	return &stockScraping{
+		url:    STATUS_INVEST_URL,
+		config: config,
+	}
 }

@@ -6,9 +6,24 @@ import (
 	"trader/internal/resource"
 )
 
-func MakePurchaseBalance(securities []*resource.Security, amountInvested float64) *resource.PurchaseBalance {
+type PurchaseBalanceService interface {
+	PurchaseBalance(securities []*resource.Security, amountInvested float64) *resource.PurchaseBalance
+	PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance
+}
+
+type purchaseBalanceService struct {
+	stockService StockService
+	reitService  ReitService
+}
+
+func (pb *purchaseBalanceService) PurchaseBalance(allSecurities []*resource.Security, amountInvested float64) *resource.PurchaseBalance {
+	securities := make([]*resource.Security, 0, len(allSecurities))
+	for _, security := range allSecurities {
+		if security != nil && security.Price > 0 {
+			securities = append(securities, security)
+		}
+	}
 	securityCount := len(securities)
-	securityValue := amountInvested / float64(securityCount)
 	remainingBalance := amountInvested
 	priceMin := math.MaxFloat64
 	priceMax := float64(0)
@@ -24,9 +39,10 @@ func MakePurchaseBalance(securities []*resource.Security, amountInvested float64
 			priceMax = security.Price
 		}
 	}
-	if amountInvested < priceMin {
+	if securityCount == 0 || amountInvested < priceMin {
 		return &resource.PurchaseBalance{SecuritiesBalance: securitiesPurchase, AmountInvested: amountInvested}
 	}
+	securityValue := amountInvested / float64(securityCount)
 	if securityValue < priceMax {
 		countBalance = -1
 	}
@@ -62,25 +78,28 @@ func MakePurchaseBalance(securities []*resource.Security, amountInvested float64
 	sort.Slice(securitiesPurchaseSort, func(i, j int) bool {
 		return securitiesPurchaseSort[i].Security.Price < securitiesPurchaseSort[j].Security.Price
 	})
-	for {
-		if remainingBalance >= priceMin {
-			for i := range securityCount {
-				if remainingBalance >= securitiesPurchaseSort[i].Security.Price {
-					securitiesPurchaseSort[i].Count += 1
-					remainingBalance = remainingBalance - securitiesPurchaseSort[i].Security.Price
-				}
+	for len(securitiesPurchaseSort) > 0 && remainingBalance >= securitiesPurchaseSort[0].Security.Price {
+		for _, securityPurchase := range securitiesPurchaseSort {
+			if remainingBalance >= securityPurchase.Security.Price {
+				securityPurchase.Count += 1
+				remainingBalance = remainingBalance - securityPurchase.Security.Price
 			}
-		} else {
-			break
 		}
 	}
 	return &resource.PurchaseBalance{SecuritiesBalance: securitiesPurchase, AmountInvested: amountInvested}
 }
 
-func MakeSecuritiesPurchaseBalance(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance {
-	stocks := ListStocks(stockTickers)
-	reits := ListReits(reitTickers)
+func (pb *purchaseBalanceService) PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance {
+	stocks := pb.stockService.ListStocksByTickers(stockTickers)
+	reits := pb.reitService.ListReitsByTickers(reitTickers)
 	securities := append(stocks, reits...)
-	result := MakePurchaseBalance(securities, amountInvested)
+	result := pb.PurchaseBalance(securities, amountInvested)
 	return result
+}
+
+func NewPurchaseBalanceService(stockService StockService, reitService ReitService) PurchaseBalanceService {
+	return &purchaseBalanceService{
+		stockService: stockService,
+		reitService:  reitService,
+	}
 }

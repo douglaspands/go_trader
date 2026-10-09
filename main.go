@@ -1,10 +1,16 @@
-/*
-Copyright © 2025 Douglas Panhota <douglaspands@gmail.com>
-*/
 package main
 
-import "trader/cmd"
+import (
+	"os"
+	"trader/internal/core"
+)
+
+var exit = os.Exit
+
+func run(args []string) int {
+	return core.NewApp().Run(args)
+}
 
 func main() {
-	cmd.Execute()
+	exit(run(os.Args[1:]))
 }

@@ -1,19 +1,30 @@
 package config
 
-type Config struct {
-	Version            string
-	ScrapingTimeoutTtl int8
+import "time"
+
+type Config interface {
+	GetVersion() string
+	GetScrapingTimeout() time.Duration
+}
+
+type config struct {
+	version         string
+	scrapingTimeout time.Duration
+}
+
+func (c *config) GetVersion() string {
+	return c.version
+}
+
+func (c *config) GetScrapingTimeout() time.Duration {
+	return c.scrapingTimeout
 }
 
 var version string = "development"
-var config *Config
 
-func GetConfig() *Config {
-	if config == nil {
-		config = &Config{
-			Version:            version,
-			ScrapingTimeoutTtl: 60,
-		}
+func NewConfig() Config {
+	return &config{
+		version:         version,
+		scrapingTimeout: 60 * time.Second,
 	}
-	return config
 }

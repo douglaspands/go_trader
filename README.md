@@ -14,7 +14,7 @@ Existem versões para Windows, Linux e Mac: [Trader/Releases](https://github.com
 
 ## Uso
 
-Essa aplicação executa através do `shell` disponivel no seu sistema operacional.
+Essa aplicação executa através do `shell` disponível no seu sistema operacional.
 
 1. Execute a aplicação para obter o preço da ação pelo ticker:
 
@@ -35,7 +35,7 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
  Origin      https://statusinvest.com.br/acoes/itsa3 
 ```
 
-2. Execute a aplicação para listar o preços das ações:
+2. Execute a aplicação para listar os preços das ações:
 
 ```sh
 # Windows
@@ -76,7 +76,7 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
  Origin      https://statusinvest.com.br/fundos-imobiliarios/mxrf11 
 ```
 
-4. Execute a aplicação para listar o preços dos FIIs:
+4. Execute a aplicação para listar os preços dos FIIs:
 
 ```sh
 # Windows
@@ -93,7 +93,7 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
  VGHF11  VALORA HEDGE FUND     36.771.692/0001-19    7.70  R$ BRL    2025-06-08 23:02:38 
 ```
 
-5. Balancear portifolio de ações:
+5. Balancear portfólio de ações:
 
 ```sh
 # Windows
@@ -115,7 +115,7 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
                          8.91  R$ BRL    REMAINING AMOUNT                                                                          
 ```
 
-6. Balancear portifolio de FIIs:
+6. Balancear portfólio de FIIs:
 
 ```sh
 # Windows
@@ -134,7 +134,7 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
                           3.53  R$ BRL    REMAINING AMOUNT    
 ```
 
-7. Balancear portifolio entre ações e FIIs:
+7. Balancear portfólio entre ações e FIIs:
 
 ```sh
 # Windows
@@ -160,3 +160,41 @@ Essa aplicação executa através do `shell` disponivel no seu sistema operacion
                            58  994.23  R$ BRL    SPENT AMOUNT        
                                  5.77  R$ BRL    REMAINING AMOUNT     
 ```
+
+## Erros e códigos de saída
+
+- Resultados (tabelas, CSV e versão) saem em `stdout`, com código de saída `0`.
+- Mensagens de erro (argumentos inválidos, ticker não encontrado, nenhum ativo comprado) saem em `stderr`, com código de saída `1`.
+- Todos os comandos `purchase-balance` exigem `--amount` (`-a`). Sem ele, o comando falha com erro de flag obrigatória.
+- Tickers aceitam apenas letras e dígitos (por exemplo, `PETR4`). Qualquer outro caractere é rejeitado antes de qualquer requisição.
+
+```sh
+./trader stock get XXXX0 > /dev/null; echo $?
+# Error: ticker "XXXX0" not found!   (stderr)
+# 1
+```
+
+## Desenvolvimento
+
+Requisitos: [Go](https://go.dev/dl/) na versão declarada em `go.mod` e `make`.
+
+```sh
+# Build (gera ./trader ou ./trader.exe)
+make build/linux
+make build/windows
+make build/darwin
+
+# Testes unitários (sem acesso à rede), com cobertura entre pacotes (coverage.out)
+make test/unit
+
+# Relatório de cobertura em HTML
+make test/coverage
+
+# Testes de integração, que consultam o StatusInvest de verdade (precisam de rede)
+make test/integration
+
+# Verificação de vulnerabilidades conhecidas (govulncheck)
+make test/vuln
+```
+
+Os testes de scraping usam HTML de exemplo em `internal/scraping/testdata/`, servido localmente. Os testes de integração (build tag `integration`) servem para detectar mudanças no layout do site.
