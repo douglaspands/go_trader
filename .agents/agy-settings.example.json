@@ -35,6 +35,8 @@
       "write_file(.claude/)",
       "write_file(.github/workflows/)",
       "write_file(Makefile)",
+      "write_file(scripts/guard)",
+      "write_file(scripts/harness-test.sh)",
       "write_file(AGENTS.md)",
       "write_file(CLAUDE.md)",
       "write_file(GEMINI.md)"
@@ -112,6 +114,9 @@
       "write_file(.env)",
       "write_file(secrets/)",
       "write_file(~/.ssh)",
+      "write_file(~/.aws)",
+      "write_file(~/.config/gcloud)",
+      "write_file(~/.kube)",
       "write_file(~/.gemini)",
       "write_file(~/.claude)"
     ]
