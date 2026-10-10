@@ -59,12 +59,16 @@ O sistema SHALL desconsiderar ativos com preço menor ou igual a zero: eles não
 - **THEN** o cálculo termina, "ZERO" não aparece no resultado, "A" recebe 10 cotas e o saldo restante é 0
 
 ### Requirement: Balanceamento por tickers
-O sistema SHALL aceitar listas separadas de tickers de ações e de FIIs, obter a cotação de cada um e calcular o balanceamento sobre o conjunto, com as ações antes dos FIIs. Tickers cuja cotação não puder ser obtida SHALL ser ignorados.
+The system SHALL accept separate lists of stock and REIT tickers, obtain the quote of each one and compute the balance over the whole set, with stocks before REITs. If the quote of any requested ticker cannot be obtained, the system SHALL compute no balance and SHALL return an error that names every failed ticker and the reason for each failure.
 
 #### Scenario: Ações e FIIs combinados
-- **WHEN** o balanceamento é pedido para a ação "PETR4" (preço 50) e o FII "HGLG11" (preço 100) com valor investido 1000
-- **THEN** o resultado contém "PETR4" com 10 cotas e "HGLG11" com 5 cotas, totalizando 15 cotas
+- **WHEN** the balance is requested for the stock "PETR4" (price 50) and the REIT "HGLG11" (price 100) with amount invested 1000
+- **THEN** the result contains "PETR4" with 10 units and "HGLG11" with 5 units, 15 units in total
 
 #### Scenario: Ticker sem cotação
-- **WHEN** o balanceamento é pedido para tickers cuja cotação não pôde ser obtida
-- **THEN** esses tickers não aparecem no resultado e o cálculo usa apenas os demais
+- **WHEN** the balance is requested for "PETR4" and "XXXX0" and the quote of "XXXX0" cannot be obtained
+- **THEN** no balance is returned, and the error names "XXXX0" and the reason of its failure
+
+#### Scenario: Várias falhas
+- **WHEN** the balance is requested for the stock "XXXX0" and the REIT "XXXX00" and neither quote can be obtained
+- **THEN** no balance is returned, and the error names both "XXXX0" and "XXXX00", each with its reason

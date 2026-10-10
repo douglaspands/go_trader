@@ -164,14 +164,29 @@ Essa aplicação executa através do `shell` disponível no seu sistema operacio
 ## Erros e códigos de saída
 
 - Resultados (tabelas, CSV e versão) saem em `stdout`, com código de saída `0`.
-- Mensagens de erro (argumentos inválidos, ticker não encontrado, nenhum ativo comprado) saem em `stderr`, com código de saída `1`.
+- Mensagens de erro (argumentos inválidos, ticker não encontrado, nenhum ativo comprado, falha de cotação) saem em `stderr`, com código de saída `1`.
 - Todos os comandos `purchase-balance` exigem `--amount` (`-a`). Sem ele, o comando falha com erro de flag obrigatória.
-- Tickers aceitam apenas letras e dígitos (por exemplo, `PETR4`). Qualquer outro caractere é rejeitado antes de qualquer requisição.
+- O `--amount` precisa ser um número finito, maior que 0 e no máximo `1000000000000` (1e12). Valores como `inf`, `NaN`, `0` ou `-100` são rejeitados antes de qualquer requisição.
+- Tickers aceitam apenas letras e dígitos, com no máximo 12 caracteres (por exemplo, `PETR4`). Qualquer outro ticker é rejeitado antes de qualquer requisição.
+- Nos comandos `list`, se algum ticker falhar e pelo menos um for obtido, a tabela sai normalmente em `stdout` e cada falha gera um aviso `Warning: <ticker>: <motivo>` em `stderr`. O código de saída continua `0`.
+- Nos comandos `purchase-balance`, se a cotação de qualquer ticker falhar, nenhuma tabela é exibida: o erro lista cada ticker que falhou com o motivo, e o código de saída é `1`. Assim o dinheiro nunca é dividido só entre os ativos que deram certo.
+- Textos vindos do site têm caracteres de controle removidos. No `--csv`, células de texto que começam com `=`, `+`, `-` ou `@` recebem um `'` na frente para que planilhas não as executem como fórmula.
 
 ```sh
 ./trader stock get XXXX0 > /dev/null; echo $?
 # Error: ticker "XXXX0" not found!   (stderr)
 # 1
+
+./trader stock purchase-balance PETR4 --amount inf
+# Error: invalid amount +Inf: it must be a finite number greater than 0 and no larger than 1000000000000   (stderr)
+
+./trader stock list ITSA3 XXXX0
+# (tabela com ITSA3 em stdout)
+# Warning: XXXX0: <motivo>   (stderr)
+
+./trader stock purchase-balance ITSA3 XXXX0 --amount 1000
+# Error: could not get the quote of 1 ticker(s):   (stderr)
+# XXXX0: <motivo>
 ```
 
 ## Desenvolvimento

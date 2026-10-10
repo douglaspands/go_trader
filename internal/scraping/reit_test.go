@@ -9,12 +9,17 @@ import (
 	"trader/internal/scraping"
 )
 
+func newReitScraping() scraping.ReitScraping {
+	cfg := config.NewConfig()
+	return scraping.NewReitScraping(cfg, scraping.NewFetcher(cfg))
+}
+
 func TestGetReitByTickerOk(t *testing.T) {
 	// GIVEN
 	ticker := "BPML11"
 
 	// THEN
-	reitScraping := scraping.NewReitScraping(config.NewConfig())
+	reitScraping := newReitScraping()
 	result, _ := reitScraping.GetReitByTicker(ticker)
 
 	// WHEN
@@ -28,7 +33,7 @@ func TestGetReitByTickerNotFound(t *testing.T) {
 	ticker := "XXXX00"
 
 	// THEN
-	reitScraping := scraping.NewReitScraping(config.NewConfig())
+	reitScraping := newReitScraping()
 	_, err := reitScraping.GetReitByTicker(ticker)
 
 	// WHEN
@@ -42,8 +47,11 @@ func TestListReitsByTickersOk(t *testing.T) {
 	tickers := []string{"HTMX11", "PORD11"}
 
 	// THEN
-	reitScraping := scraping.NewReitScraping(config.NewConfig())
-	result := reitScraping.ListReitsByTickers(tickers)
+	reitScraping := newReitScraping()
+	result, failures := reitScraping.ListReitsByTickers(tickers)
+	for _, failure := range failures {
+		t.Logf("failed %s: %v", failure.Ticker, failure.Err)
+	}
 
 	// WHEN
 	for _, reit := range result {

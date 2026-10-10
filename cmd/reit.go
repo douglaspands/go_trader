@@ -37,10 +37,10 @@ func (rc *reitCommand) getReitByTickerCmd(cmd *cobra.Command, args []string) err
 	t := common.NewTableWriter(rc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"FIELD", "VALUE"})
 	t.AppendRow(table.Row{"Ticker", reit.Ticker})
-	t.AppendRow(table.Row{"Name", reit.Name})
-	t.AppendRow(table.Row{"Admin", reit.Admin})
-	t.AppendRow(table.Row{"Document", reit.Document})
-	t.AppendRow(table.Row{"Segment", reit.Segment})
+	t.AppendRow(table.Row{"Name", cell(reit.Name, rc.csv)})
+	t.AppendRow(table.Row{"Admin", cell(reit.Admin, rc.csv)})
+	t.AppendRow(table.Row{"Document", cell(reit.Document, rc.csv)})
+	t.AppendRow(table.Row{"Segment", cell(reit.Segment, rc.csv)})
 	t.AppendRow(table.Row{"Currency", reit.Currency.String()})
 	t.AppendRow(table.Row{"Price", tools.TableRowValue(reit.Price)})
 	t.AppendRow(table.Row{"CapturedAt", tools.TableRowValue(reit.CapturedAt)})
@@ -53,7 +53,7 @@ func (rc *reitCommand) getReitByTickerCmd(cmd *cobra.Command, args []string) err
 
 func (rc *reitCommand) listReitsByTickersCmd(cmd *cobra.Command, args []string) error {
 	tickers := args
-	reits := rc.reitService.ListReitsByTickers(tickers)
+	reits, failures := rc.reitService.ListReitsByTickers(tickers)
 	if len(reits) == 0 {
 		cmd.SilenceUsage = true
 		return errors.New("tickers not found!")
@@ -61,7 +61,7 @@ func (rc *reitCommand) listReitsByTickersCmd(cmd *cobra.Command, args []string) 
 	t := common.NewTableWriter(rc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "PRICE", "CURRENCY", "CAPTURED AT"})
 	for _, reit := range reits {
-		t.AppendRow(table.Row{reit.Ticker, reit.Name, reit.Document, tools.TableRowValue(reit.Price), reit.Currency.String(), tools.TableRowValue(reit.CapturedAt)})
+		t.AppendRow(table.Row{reit.Ticker, cell(reit.Name, rc.csv), cell(reit.Document, rc.csv), tools.TableRowValue(reit.Price), reit.Currency.String(), tools.TableRowValue(reit.CapturedAt)})
 	}
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{
@@ -77,12 +77,20 @@ func (rc *reitCommand) listReitsByTickersCmd(cmd *cobra.Command, args []string) 
 	})
 	t.SetIndexColumn(1)
 	render(t, rc.csv)
+	printWarnings(cmd.ErrOrStderr(), failures)
 	return nil
 }
 
 func (rc *reitCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) error {
+	if err := validateAmount(rc.flagAmount); err != nil {
+		return err
+	}
 	tickers := args
-	purchaseBalance := rc.purchaseBalanceService.PurchaseBalancesBySecurities([]string{}, tickers, rc.flagAmount)
+	purchaseBalance, err := rc.purchaseBalanceService.PurchaseBalancesBySecurities([]string{}, tickers, rc.flagAmount)
+	if err != nil {
+		cmd.SilenceUsage = true
+		return cleanError(err)
+	}
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
 		cmd.SilenceUsage = true
 		return errors.New("tickers not found!")

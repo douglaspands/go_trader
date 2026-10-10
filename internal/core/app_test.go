@@ -66,6 +66,24 @@ func TestRunWithoutArguments(t *testing.T) {
 	}
 }
 
+func TestRunPurchaseBalanceInfiniteAmount(t *testing.T) {
+	var code int
+
+	// WHEN
+	stdout, stderr := capture(t, func() { code = core.NewApp().Run([]string{"stock", "purchase-balance", "PETR4", "--amount", "inf"}) })
+
+	// THEN
+	if code != 1 {
+		t.Errorf("expected exit code 1 and received %d", code)
+	}
+	if !strings.Contains(stderr, "Error: invalid amount") {
+		t.Errorf("expected an invalid amount error in stderr and received %q", stderr)
+	}
+	if stdout != "" {
+		t.Errorf("expected empty stdout and received %q", stdout)
+	}
+}
+
 func TestRunStockGetWithoutTicker(t *testing.T) {
 	var code int
 

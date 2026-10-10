@@ -3,12 +3,16 @@ package scraping
 import (
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"trader/internal/resource"
 )
 
 func newTestReitScraping(url string) *reitScraping {
-	return &reitScraping{url: url, config: newFakeConfig()}
+	config := newFakeConfig()
+	scraping := NewReitScraping(config, NewFetcher(config)).(*reitScraping)
+	scraping.url = url
+	return scraping
 }
 
 func TestGetReitByTickerFound(t *testing.T) {
@@ -114,14 +118,14 @@ func TestGetReitByTickerInvalidTicker(t *testing.T) {
 	server, requests := newCountingServer(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("unexpected request to %s", r.URL)
 	})
-	for _, ticker := range []string{"", "%zz", "MX RF11"} {
+	for _, ticker := range []string{"", "%zz", "MX RF11", "ABCDEFGHIJK13"} {
 		t.Run(ticker, func(t *testing.T) {
 			// WHEN
 			result, err := newTestReitScraping(server.URL).GetReitByTicker(ticker)
 
 			// THEN
-			if err == nil {
-				t.Error("expected error, received nil")
+			if err == nil || !strings.Contains(err.Error(), "invalid ticker") {
+				t.Errorf("expected an invalid ticker error, received %v", err)
 			}
 			if result != nil {
 				t.Errorf("expected no reit, received %+v", result)
@@ -130,6 +134,25 @@ func TestGetReitByTickerInvalidTicker(t *testing.T) {
 	}
 	if requests.Load() != 0 {
 		t.Errorf("expected no requests, received %d", requests.Load())
+	}
+}
+
+func TestGetReitByTickerMaximumLength(t *testing.T) {
+	// GIVEN
+	server, requests := serveFixture(t, "reit_full.html")
+
+	// WHEN
+	result, err := newTestReitScraping(server.URL).GetReitByTicker("ABCDEFGHIJ12")
+
+	// THEN
+	if err != nil {
+		t.Fatalf("expected no error, received %v", err)
+	}
+	if result.Ticker != "ABCDEFGHIJ12" {
+		t.Errorf(`expected ticker "ABCDEFGHIJ12" and received "%s"`, result.Ticker)
+	}
+	if requests.Load() != 1 {
+		t.Errorf("expected 1 request, received %d", requests.Load())
 	}
 }
 
@@ -172,6 +195,26 @@ func TestGetReitByTickerFailures(t *testing.T) {
 	}
 }
 
+func TestGetReitByTickerBodyLimit(t *testing.T) {
+	t.Run("exactly the limit", func(t *testing.T) {
+		server, _ := serveSize(t, maxBodySize)
+		result, err := newTestReitScraping(server.URL).GetReitByTicker("MXRF11")
+		if err != nil || result == nil {
+			t.Errorf("expected a reit and no error, received %v and %v", result, err)
+		}
+	})
+	t.Run("one byte over the limit", func(t *testing.T) {
+		server, _ := serveSize(t, maxBodySize+1)
+		result, err := newTestReitScraping(server.URL).GetReitByTicker("MXRF11")
+		if err == nil || !strings.Contains(err.Error(), "body larger than") {
+			t.Errorf("expected a body size error, received %v", err)
+		}
+		if result != nil {
+			t.Errorf("expected no reit, received %+v", result)
+		}
+	})
+}
+
 func TestGetReitByTickerGzip(t *testing.T) {
 	// GIVEN
 	server, _ := serveGzip(t, readFixture(t, "reit_full.html"))
@@ -188,7 +231,7 @@ func TestGetReitByTickerGzip(t *testing.T) {
 	}
 }
 
-func TestListReitsByTickersSkipsFailures(t *testing.T) {
+func TestListReitsByTickersReportsFailures(t *testing.T) {
 	// GIVEN
 	server, _ := serveByPath(t, map[string]string{
 		"/fundos-imobiliarios/mxrf11": "reit_full.html",
@@ -197,21 +240,71 @@ func TestListReitsByTickersSkipsFailures(t *testing.T) {
 	})
 
 	// WHEN
-	result := newTestReitScraping(server.URL).ListReitsByTickers([]string{"MXRF11", "XXXX00", "HGLG11"})
+	result, failures := newTestReitScraping(server.URL).ListReitsByTickers([]string{"MXRF11", "XXXX00", "HGLG11"})
 
 	// THEN
 	tickers := tickersOf(result)
 	if len(tickers) != 2 || tickers[0] != "MXRF11" || tickers[1] != "HGLG11" {
 		t.Errorf("expected [MXRF11 HGLG11] and received %v", tickers)
 	}
+	if len(failures) != 1 {
+		t.Fatalf("expected 1 failure and received %d", len(failures))
+	}
+	if failures[0].Ticker != "XXXX00" || failures[0].Type != resource.REIT_TYPE || !strings.Contains(failures[0].Err.Error(), "ticker not found") {
+		t.Errorf("unexpected failure %+v", failures[0])
+	}
+}
+
+func TestListReitsByTickersLimitsRequestsInFlight(t *testing.T) {
+	// GIVEN
+	server, inFlight := serveInFlight(t, readFixture(t, "reit_full.html"))
+	tickers := []string{"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"}
+
+	// WHEN
+	result, failures := newTestReitScraping(server.URL).ListReitsByTickers(tickers)
+
+	// THEN
+	if len(result) != 10 || len(failures) != 0 {
+		t.Errorf("expected 10 reits and no failures, received %d and %v", len(result), failures)
+	}
+	if inFlight.max.Load() != 4 {
+		t.Errorf("expected at most and at least 4 requests in flight, received %d", inFlight.max.Load())
+	}
+}
+
+func TestStocksAndReitsShareTheLimit(t *testing.T) {
+	// GIVEN one fetcher shared by both scrapers
+	content := append(readFixture(t, "stock_full.html"), readFixture(t, "reit_full.html")...)
+	server, inFlight := serveInFlight(t, content)
+	config := newFakeConfig()
+	fetcher := NewFetcher(config)
+	stocks := NewStockScraping(config, fetcher).(*stockScraping)
+	stocks.url = server.URL
+	reits := NewReitScraping(config, fetcher).(*reitScraping)
+	reits.url = server.URL
+
+	// WHEN
+	var wg sync.WaitGroup
+	wg.Go(func() { stocks.ListStocksByTickers([]string{"S1", "S2", "S3"}) })
+	wg.Go(func() { reits.ListReitsByTickers([]string{"R1", "R2", "R3"}) })
+	wg.Wait()
+
+	// THEN
+	if inFlight.max.Load() != 4 {
+		t.Errorf("expected at most and at least 4 requests in flight, received %d", inFlight.max.Load())
+	}
 }
 
 func TestNewReitScraping(t *testing.T) {
 	// WHEN
-	scraping := NewReitScraping(newFakeConfig()).(*reitScraping)
+	fetcher := NewFetcher(newFakeConfig())
+	scraping := NewReitScraping(newFakeConfig(), fetcher).(*reitScraping)
 
 	// THEN
 	if scraping.url != STATUS_INVEST_URL {
 		t.Errorf(`unexpected url "%s"`, scraping.url)
+	}
+	if scraping.fetcher != fetcher {
+		t.Error("expected the given fetcher")
 	}
 }

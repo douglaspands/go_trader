@@ -1,14 +1,20 @@
 package scraping
 
 import (
+	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 	"trader/internal/resource"
 )
 
 func newTestStockScraping(url string) *stockScraping {
-	return &stockScraping{url: url, config: newFakeConfig()}
+	config := newFakeConfig()
+	scraping := NewStockScraping(config, NewFetcher(config)).(*stockScraping)
+	scraping.url = url
+	return scraping
 }
 
 func tickersOf(securities []*resource.Security) []string {
@@ -42,8 +48,8 @@ func TestGetStockByTickerFound(t *testing.T) {
 	if result.Document != "33.000.167/0001-01" {
 		t.Errorf(`unexpected document "%s"`, result.Document)
 	}
-	if result.Description != "Primeiro parágrafo. Segundo parágrafo." {
-		t.Errorf(`unexpected description "%s"`, result.Description)
+	if result.Description != "" {
+		t.Errorf(`expected empty description and received "%s"`, result.Description)
 	}
 	if result.Price != 1234.56 {
 		t.Errorf("expected price 1234.56 and received %f", result.Price)
@@ -115,14 +121,14 @@ func TestGetStockByTickerInvalidTicker(t *testing.T) {
 	server, requests := newCountingServer(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("unexpected request to %s", r.URL)
 	})
-	for _, ticker := range []string{"", "PE%ZZ", "../x", "MX RF11"} {
+	for _, ticker := range []string{"", "PE%ZZ", "../x", "MX RF11", "ABCDEFGHIJK13"} {
 		t.Run(ticker, func(t *testing.T) {
 			// WHEN
 			result, err := newTestStockScraping(server.URL).GetStockByTicker(ticker)
 
 			// THEN
-			if err == nil {
-				t.Error("expected error, received nil")
+			if err == nil || !strings.Contains(err.Error(), "invalid ticker") {
+				t.Errorf("expected an invalid ticker error, received %v", err)
 			}
 			if result != nil {
 				t.Errorf("expected no stock, received %+v", result)
@@ -131,6 +137,25 @@ func TestGetStockByTickerInvalidTicker(t *testing.T) {
 	}
 	if requests.Load() != 0 {
 		t.Errorf("expected no requests, received %d", requests.Load())
+	}
+}
+
+func TestGetStockByTickerMaximumLength(t *testing.T) {
+	// GIVEN
+	server, requests := serveFixture(t, "stock_full.html")
+
+	// WHEN
+	result, err := newTestStockScraping(server.URL).GetStockByTicker("ABCDEFGHIJ12")
+
+	// THEN
+	if err != nil {
+		t.Fatalf("expected no error, received %v", err)
+	}
+	if result.Ticker != "ABCDEFGHIJ12" {
+		t.Errorf(`expected ticker "ABCDEFGHIJ12" and received "%s"`, result.Ticker)
+	}
+	if requests.Load() != 1 {
+		t.Errorf("expected 1 request, received %d", requests.Load())
 	}
 }
 
@@ -184,6 +209,26 @@ func TestGetStockByTickerFailures(t *testing.T) {
 	}
 }
 
+func TestGetStockByTickerBodyLimit(t *testing.T) {
+	t.Run("exactly the limit", func(t *testing.T) {
+		server, _ := serveSize(t, maxBodySize)
+		result, err := newTestStockScraping(server.URL).GetStockByTicker("PETR4")
+		if err != nil || result == nil {
+			t.Errorf("expected a stock and no error, received %v and %v", result, err)
+		}
+	})
+	t.Run("one byte over the limit", func(t *testing.T) {
+		server, _ := serveSize(t, maxBodySize+1)
+		result, err := newTestStockScraping(server.URL).GetStockByTicker("PETR4")
+		if err == nil || !strings.Contains(err.Error(), "body larger than") {
+			t.Errorf("expected a body size error, received %v", err)
+		}
+		if result != nil {
+			t.Errorf("expected no stock, received %+v", result)
+		}
+	})
+}
+
 func TestGetStockByTickerGzip(t *testing.T) {
 	// GIVEN
 	server, _ := serveGzip(t, readFixture(t, "stock_full.html"))
@@ -200,7 +245,7 @@ func TestGetStockByTickerGzip(t *testing.T) {
 	}
 }
 
-func TestListStocksByTickersSkipsFailures(t *testing.T) {
+func TestListStocksByTickersReportsFailures(t *testing.T) {
 	// GIVEN
 	server, requests := serveByPath(t, map[string]string{
 		"/acoes/petr4": "stock_full.html",
@@ -208,24 +253,87 @@ func TestListStocksByTickersSkipsFailures(t *testing.T) {
 	})
 
 	// WHEN
-	result := newTestStockScraping(server.URL).ListStocksByTickers([]string{"PETR4", "XXXX0", "BAD TICKER", "VALE3"})
+	result, failures := newTestStockScraping(server.URL).ListStocksByTickers([]string{"PETR4", "XXXX0", "BAD TICKER", "VALE3"})
 
 	// THEN
 	tickers := tickersOf(result)
 	if len(tickers) != 2 || tickers[0] != "PETR4" || tickers[1] != "VALE3" {
 		t.Errorf("expected [PETR4 VALE3] and received %v", tickers)
 	}
+	if len(failures) != 2 {
+		t.Fatalf("expected 2 failures and received %d", len(failures))
+	}
+	if failures[0].Ticker != "XXXX0" || failures[0].Type != resource.STOCK_TYPE || !strings.Contains(failures[0].Err.Error(), `status="404"`) {
+		t.Errorf("unexpected failure %+v", failures[0])
+	}
+	if failures[1].Ticker != "BAD TICKER" || !strings.Contains(failures[1].Err.Error(), "invalid ticker") {
+		t.Errorf("unexpected failure %+v", failures[1])
+	}
 	if requests.Load() != 3 {
 		t.Errorf("expected 3 requests and received %d", requests.Load())
 	}
 }
 
+func TestListStocksByTickersKeepsOrder(t *testing.T) {
+	// GIVEN a server that answers C1 first, then B1, and A1 last
+	content := readFixture(t, "stock_full.html")
+	answered := map[string]chan struct{}{"/acoes/c1": make(chan struct{}), "/acoes/b1": make(chan struct{}), "/acoes/a1": make(chan struct{})}
+	waitFor := map[string]string{"/acoes/b1": "/acoes/c1", "/acoes/a1": "/acoes/b1"}
+	server, _ := newCountingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if previous, ok := waitFor[r.URL.Path]; ok {
+			select {
+			case <-answered[previous]:
+			case <-time.After(5 * time.Second):
+				t.Errorf("%s waited too long for %s", r.URL.Path, previous)
+			}
+		}
+		w.Write(content)
+		w.(http.Flusher).Flush()
+		close(answered[r.URL.Path])
+	})
+
+	// WHEN
+	result, failures := newTestStockScraping(server.URL).ListStocksByTickers([]string{"A1", "B1", "C1"})
+
+	// THEN
+	if len(failures) != 0 {
+		t.Errorf("expected no failures and received %v", failures)
+	}
+	if tickers := tickersOf(result); !reflect.DeepEqual(tickers, []string{"A1", "B1", "C1"}) {
+		t.Errorf("expected [A1 B1 C1] and received %v", tickers)
+	}
+}
+
+func TestListStocksByTickersLimitsRequestsInFlight(t *testing.T) {
+	// GIVEN
+	server, inFlight := serveInFlight(t, readFixture(t, "stock_full.html"))
+	tickers := make([]string, 10)
+	for i := range tickers {
+		tickers[i] = fmt.Sprintf("TICK%d", i)
+	}
+
+	// WHEN
+	result, failures := newTestStockScraping(server.URL).ListStocksByTickers(tickers)
+
+	// THEN
+	if len(result) != 10 || len(failures) != 0 {
+		t.Errorf("expected 10 stocks and no failures, received %d and %v", len(result), failures)
+	}
+	if inFlight.max.Load() != 4 {
+		t.Errorf("expected at most and at least 4 requests in flight, received %d", inFlight.max.Load())
+	}
+}
+
 func TestNewStockScraping(t *testing.T) {
 	// WHEN
-	scraping := NewStockScraping(newFakeConfig()).(*stockScraping)
+	fetcher := NewFetcher(newFakeConfig())
+	scraping := NewStockScraping(newFakeConfig(), fetcher).(*stockScraping)
 
 	// THEN
 	if scraping.url != STATUS_INVEST_URL {
 		t.Errorf(`unexpected url "%s"`, scraping.url)
+	}
+	if scraping.fetcher != fetcher {
+		t.Error("expected the given fetcher")
 	}
 }

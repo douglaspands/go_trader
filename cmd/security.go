@@ -28,9 +28,16 @@ type securityCommand struct {
 }
 
 func (sc *securityCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) error {
+	if err := validateAmount(sc.flagAmount); err != nil {
+		return err
+	}
 	stocks := tools.SplitList(sc.flagStocks, ",")
 	reits := tools.SplitList(sc.flagReits, ",")
-	purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, sc.flagAmount)
+	purchaseBalance, err := sc.purchaseBalanceService.PurchaseBalancesBySecurities(stocks, reits, sc.flagAmount)
+	if err != nil {
+		cmd.SilenceUsage = true
+		return cleanError(err)
+	}
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
 		cmd.SilenceUsage = true
 		return errors.New("tickers not found!")

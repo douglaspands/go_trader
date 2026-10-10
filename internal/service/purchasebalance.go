@@ -2,13 +2,15 @@ package service
 
 import (
 	"math"
+	"slices"
 	"sort"
+	"sync"
 	"trader/internal/resource"
 )
 
 type PurchaseBalanceService interface {
 	PurchaseBalance(securities []*resource.Security, amountInvested float64) *resource.PurchaseBalance
-	PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance
+	PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) (*resource.PurchaseBalance, error)
 }
 
 type purchaseBalanceService struct {
@@ -89,12 +91,21 @@ func (pb *purchaseBalanceService) PurchaseBalance(allSecurities []*resource.Secu
 	return &resource.PurchaseBalance{SecuritiesBalance: securitiesPurchase, AmountInvested: amountInvested}
 }
 
-func (pb *purchaseBalanceService) PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance {
-	stocks := pb.stockService.ListStocksByTickers(stockTickers)
-	reits := pb.reitService.ListReitsByTickers(reitTickers)
-	securities := append(stocks, reits...)
-	result := pb.PurchaseBalance(securities, amountInvested)
-	return result
+// PurchaseBalancesBySecurities quotes stocks and REITs at the same time and balances them,
+// stocks first. If any ticker cannot be quoted, it returns a *resource.QuoteFailuresError
+// and computes no balance.
+func (pb *purchaseBalanceService) PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) (*resource.PurchaseBalance, error) {
+	var stocks, reits []*resource.Security
+	var stockFailures, reitFailures []*resource.TickerFailure
+	var wg sync.WaitGroup
+	wg.Go(func() { stocks, stockFailures = pb.stockService.ListStocksByTickers(stockTickers) })
+	wg.Go(func() { reits, reitFailures = pb.reitService.ListReitsByTickers(reitTickers) })
+	wg.Wait()
+
+	if failures := slices.Concat(stockFailures, reitFailures); len(failures) > 0 {
+		return nil, &resource.QuoteFailuresError{Failures: failures}
+	}
+	return pb.PurchaseBalance(slices.Concat(stocks, reits), amountInvested), nil
 }
 
 func NewPurchaseBalanceService(stockService StockService, reitService ReitService) PurchaseBalanceService {
