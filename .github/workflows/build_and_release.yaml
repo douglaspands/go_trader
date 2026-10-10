@@ -12,8 +12,11 @@ on:
 
 # TAG_NAME reaches shell steps only as an environment variable ("$TAG_NAME"), never through
 # ${{ }} interpolation inside a run block.
+# setup-go installs the version of the go directive; GOTOOLCHAIN=auto makes the go command
+# switch to the patched toolchain declared in go.mod, so tests and binaries use it.
 env:
   TAG_NAME: ${{ github.event.inputs.TAG_NAME || github.event.release.tag_name }}
+  GOTOOLCHAIN: auto
 
 permissions:
   contents: read
@@ -31,6 +34,9 @@ jobs:
       uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version-file: go.mod
+
+    - name: Go version
+      run: go version
 
     - name: Vet
       run: go vet ./...

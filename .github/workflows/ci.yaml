@@ -7,6 +7,11 @@ on:
 permissions:
   contents: read
 
+# setup-go installs the version of the go directive; the go command then switches to the
+# patched toolchain declared in go.mod.
+env:
+  GOTOOLCHAIN: auto
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -19,6 +24,9 @@ jobs:
       uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version-file: go.mod
+
+    - name: Go version
+      run: go version
 
     - name: Vet
       run: go vet ./...
