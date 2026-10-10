@@ -19,11 +19,12 @@ const (
 
 type ReitScraping interface {
 	GetReitByTicker(ticker string) (*resource.Security, error)
-	ListReitsByTickers(tickers []string) []*resource.Security
+	ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure)
 }
 type reitScraping struct {
-	url    string
-	config config.Config
+	url     string
+	config  config.Config
+	fetcher *Fetcher
 }
 
 func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, error) {
@@ -32,8 +33,7 @@ func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, erro
 	}
 
 	url := fmt.Sprintf("%s/fundos-imobiliarios/%s", rs.url, strings.ToLower(ticker))
-	timeout := rs.config.GetScrapingTimeout()
-	htmlDoc, err := getHtml(url, timeout)
+	htmlDoc, err := rs.fetcher.Fetch(url)
 	if err != nil {
 		return nil, err
 	}
@@ -99,20 +99,14 @@ func (rs *reitScraping) GetReitByTicker(ticker string) (*resource.Security, erro
 	}, nil
 }
 
-func (rs *reitScraping) ListReitsByTickers(tickers []string) []*resource.Security {
-	var reits []*resource.Security
-	for _, ticker := range tickers {
-		reit, err := rs.GetReitByTicker(ticker)
-		if err == nil {
-			reits = append(reits, reit)
-		}
-	}
-	return reits
+func (rs *reitScraping) ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+	return listByTickers(tickers, resource.REIT_TYPE, rs.GetReitByTicker)
 }
 
-func NewReitScraping(config config.Config) ReitScraping {
+func NewReitScraping(config config.Config, fetcher *Fetcher) ReitScraping {
 	return &reitScraping{
-		url:    STATUS_INVEST_URL,
-		config: config,
+		url:     STATUS_INVEST_URL,
+		config:  config,
+		fetcher: fetcher,
 	}
 }

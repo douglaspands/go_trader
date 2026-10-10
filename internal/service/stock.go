@@ -7,7 +7,7 @@ import (
 
 type StockService interface {
 	GetStockByTicker(ticker string) *resource.Security
-	ListStocksByTickers(tickers []string) []*resource.Security
+	ListStocksByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure)
 }
 
 type stockService struct {
@@ -22,9 +22,8 @@ func (ss *stockService) GetStockByTicker(ticker string) *resource.Security {
 	return stock
 }
 
-func (ss *stockService) ListStocksByTickers(tickers []string) []*resource.Security {
-	result := ss.stockScraping.ListStocksByTickers(tickers)
-	return result
+func (ss *stockService) ListStocksByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+	return ss.stockScraping.ListStocksByTickers(tickers)
 }
 
 func NewStockService(stockScraping scraping.StockScraping) StockService {

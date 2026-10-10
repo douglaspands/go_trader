@@ -45,29 +45,40 @@ func (fakeConfig) GetVersion() string { return "development" }
 
 func (fakeConfig) GetScrapingTimeout() time.Duration { return time.Second }
 
+func (fakeConfig) GetMaxConcurrentRequests() int { return 4 }
+
+type listFunc func(tickers []string) ([]*resource.Security, []*resource.TickerFailure)
+
+// listing returns a listFunc that always answers with securities and no failures.
+func listing(securities ...*resource.Security) listFunc {
+	return func(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+		return securities, nil
+	}
+}
+
 type fakeStockService struct {
 	get  func(ticker string) *resource.Security
-	list func(tickers []string) []*resource.Security
+	list listFunc
 }
 
 func (f *fakeStockService) GetStockByTicker(ticker string) *resource.Security {
 	return f.get(ticker)
 }
 
-func (f *fakeStockService) ListStocksByTickers(tickers []string) []*resource.Security {
+func (f *fakeStockService) ListStocksByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 	return f.list(tickers)
 }
 
 type fakeReitService struct {
 	get  func(ticker string) *resource.Security
-	list func(tickers []string) []*resource.Security
+	list listFunc
 }
 
 func (f *fakeReitService) GetReitByTicker(ticker string) *resource.Security {
 	return f.get(ticker)
 }
 
-func (f *fakeReitService) ListReitsByTickers(tickers []string) []*resource.Security {
+func (f *fakeReitService) ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 	return f.list(tickers)
 }
 
@@ -79,6 +90,7 @@ type purchaseCall struct {
 
 type fakePurchaseBalanceService struct {
 	result *resource.PurchaseBalance
+	err    error
 	calls  []purchaseCall
 }
 
@@ -86,9 +98,12 @@ func (f *fakePurchaseBalanceService) PurchaseBalance(securities []*resource.Secu
 	return f.result
 }
 
-func (f *fakePurchaseBalanceService) PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) *resource.PurchaseBalance {
+func (f *fakePurchaseBalanceService) PurchaseBalancesBySecurities(stockTickers []string, reitTickers []string, amountInvested float64) (*resource.PurchaseBalance, error) {
 	f.calls = append(f.calls, purchaseCall{stocks: stockTickers, reits: reitTickers, amount: amountInvested})
-	return f.result
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.result, nil
 }
 
 // fakes groups the fake services used to build a command tree.
@@ -102,11 +117,11 @@ func newFakes() *fakes {
 	return &fakes{
 		stock: &fakeStockService{
 			get:  func(ticker string) *resource.Security { return nil },
-			list: func(tickers []string) []*resource.Security { return nil },
+			list: listing(),
 		},
 		reit: &fakeReitService{
 			get:  func(ticker string) *resource.Security { return nil },
-			list: func(tickers []string) []*resource.Security { return nil },
+			list: listing(),
 		},
 		purchase: &fakePurchaseBalanceService{
 			result: &resource.PurchaseBalance{},

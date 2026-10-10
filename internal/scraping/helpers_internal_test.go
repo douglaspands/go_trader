@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -20,6 +21,8 @@ type fakeConfig struct {
 func (c fakeConfig) GetVersion() string { return "test" }
 
 func (c fakeConfig) GetScrapingTimeout() time.Duration { return c.timeout }
+
+func (c fakeConfig) GetMaxConcurrentRequests() int { return 4 }
 
 func newFakeConfig() fakeConfig {
 	return fakeConfig{timeout: time.Second}
@@ -97,6 +100,51 @@ func serveUnparsable(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	content := strings.Repeat("<div>", 600)
 	return newCountingServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(content))
+	})
+}
+
+// inFlightCounter records how many requests a server is handling at once.
+type inFlightCounter struct {
+	current atomic.Int32
+	max     atomic.Int32
+}
+
+// serveInFlight serves content and records the peak number of requests in flight. The first
+// requests wait until 4 are in flight, or for a short timeout, so the peak shows both that
+// requests run concurrently and that no more than 4 run at a time.
+func serveInFlight(t *testing.T, content []byte) (*httptest.Server, *inFlightCounter) {
+	t.Helper()
+	counter := &inFlightCounter{}
+	barrier := make(chan struct{})
+	var once sync.Once
+	server, _ := newCountingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		n := counter.current.Add(1)
+		defer counter.current.Add(-1)
+		for {
+			peak := counter.max.Load()
+			if n <= peak || counter.max.CompareAndSwap(peak, n) {
+				break
+			}
+		}
+		if n >= 4 {
+			once.Do(func() { close(barrier) })
+		}
+		select {
+		case <-barrier:
+		case <-time.After(2 * time.Second):
+		}
+		w.Write(content)
+	})
+	return server, counter
+}
+
+// serveSize serves an HTML document of exactly size bytes.
+func serveSize(t *testing.T, size int) (*httptest.Server, *atomic.Int32) {
+	t.Helper()
+	prefix := "<html><body>"
+	content := []byte(prefix + strings.Repeat("a", size-len(prefix)))
+	return newCountingServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write(content)
 	})
 }
 

@@ -18,8 +18,9 @@ type app struct {
 func (a *app) setup() {
 	config := config.NewConfig()
 
-	stockScraping := scraping.NewStockScraping(config)
-	reitScraping := scraping.NewReitScraping(config)
+	fetcher := scraping.NewFetcher(config)
+	stockScraping := scraping.NewStockScraping(config, fetcher)
+	reitScraping := scraping.NewReitScraping(config, fetcher)
 
 	stockService := service.NewStockService(stockScraping)
 	reitService := service.NewReitService(reitScraping)

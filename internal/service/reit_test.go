@@ -19,8 +19,9 @@ func (m *reitScrapingMock) GetReitByTicker(ticket string) (*resource.Security, e
 	return m.ReturnValue["GetReitByTicker"].(*resource.Security), nil
 }
 
-func (m *reitScrapingMock) ListReitsByTickers(tickers []string) []*resource.Security {
-	return m.ReturnValue["ListReitsByTickers"].([]*resource.Security)
+func (m *reitScrapingMock) ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+	failures, _ := m.ReturnValue["ListReitsByTickersFailures"].([]*resource.TickerFailure)
+	return m.ReturnValue["ListReitsByTickers"].([]*resource.Security), failures
 }
 
 func newReitScrapingMock() *reitScrapingMock {
@@ -89,10 +90,35 @@ func TestListReitFound(t *testing.T) {
 
 	// THEN
 	reitService := service.NewReitService(mock)
-	result := reitService.ListReitsByTickers(tickers)
+	result, failures := reitService.ListReitsByTickers(tickers)
 
 	// WHEN
 	if len(result) < 1 {
 		t.Errorf(`expected at "%v" and received at %v`, tickers, result)
+	}
+	if len(failures) != 0 {
+		t.Errorf("expected no failures and received %v", failures)
+	}
+}
+
+func TestListReitWithFailures(t *testing.T) {
+	// GIVEN
+	tickers := []string{"BPML11", "XXXX00"}
+
+	// MOCK
+	mock := newReitScrapingMock()
+	expected := []*resource.TickerFailure{{Ticker: "XXXX00", Type: resource.REIT_TYPE, Err: fmt.Errorf("mock error")}}
+	mock.ReturnValue["ListReitsByTickersFailures"] = expected
+
+	// THEN
+	reitService := service.NewReitService(mock)
+	result, failures := reitService.ListReitsByTickers(tickers)
+
+	// WHEN
+	if len(result) != 1 || result[0].Ticker != "BPML11" {
+		t.Errorf("expected [BPML11] and received %v", result)
+	}
+	if len(failures) != 1 || failures[0] != expected[0] {
+		t.Errorf("expected the scraping failures and received %v", failures)
 	}
 }

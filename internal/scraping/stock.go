@@ -15,12 +15,13 @@ import (
 
 type StockScraping interface {
 	GetStockByTicker(ticker string) (*resource.Security, error)
-	ListStocksByTickers(tickers []string) []*resource.Security
+	ListStocksByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure)
 }
 
 type stockScraping struct {
-	url    string
-	config config.Config
+	url     string
+	config  config.Config
+	fetcher *Fetcher
 }
 
 func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, error) {
@@ -29,8 +30,7 @@ func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, er
 	}
 
 	url := fmt.Sprintf("%s/acoes/%s", ss.url, strings.ToLower(ticker))
-	timeout := ss.config.GetScrapingTimeout()
-	htmlDoc, err := getHtml(url, timeout)
+	htmlDoc, err := ss.fetcher.Fetch(url)
 	if err != nil {
 		return nil, err
 	}
@@ -61,16 +61,10 @@ func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, er
 		document = strings.TrimSpace(n.Data)
 	}
 
-	var description []string
-	for _, n = range htmlquery.Find(doc, `//div/p[not(@*)]/text()`) {
-		description = append(description, strings.TrimSpace(n.Data))
-	}
-
 	return &resource.Security{
-		Ticker:      strings.ToUpper(ticker),
-		Name:        name,
-		Description: strings.TrimSpace(strings.Join(description, " ")),
-		Type:        resource.STOCK_TYPE,
+		Ticker: strings.ToUpper(ticker),
+		Name:   name,
+		Type:   resource.STOCK_TYPE,
 		Currency: &resource.Currency{
 			Code:        "BRL",
 			Description: "Brazilian Real",
@@ -83,20 +77,14 @@ func (ss *stockScraping) GetStockByTicker(ticker string) (*resource.Security, er
 	}, nil
 }
 
-func (ss *stockScraping) ListStocksByTickers(tickers []string) []*resource.Security {
-	var stocks []*resource.Security
-	for _, ticker := range tickers {
-		stock, err := ss.GetStockByTicker(ticker)
-		if err == nil {
-			stocks = append(stocks, stock)
-		}
-	}
-	return stocks
+func (ss *stockScraping) ListStocksByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+	return listByTickers(tickers, resource.STOCK_TYPE, ss.GetStockByTicker)
 }
 
-func NewStockScraping(config config.Config) StockScraping {
+func NewStockScraping(config config.Config, fetcher *Fetcher) StockScraping {
 	return &stockScraping{
-		url:    STATUS_INVEST_URL,
-		config: config,
+		url:     STATUS_INVEST_URL,
+		config:  config,
+		fetcher: fetcher,
 	}
 }

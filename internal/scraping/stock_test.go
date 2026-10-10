@@ -9,12 +9,17 @@ import (
 	"trader/internal/scraping"
 )
 
+func newStockScraping() scraping.StockScraping {
+	cfg := config.NewConfig()
+	return scraping.NewStockScraping(cfg, scraping.NewFetcher(cfg))
+}
+
 func TestGetStockByTickerOk(t *testing.T) {
 	// GIVEN
 	ticker := "PETR4"
 
 	// THEN
-	stockScraping := scraping.NewStockScraping(config.NewConfig())
+	stockScraping := newStockScraping()
 	result, _ := stockScraping.GetStockByTicker(ticker)
 
 	// WHEN
@@ -28,7 +33,7 @@ func TestGetStockByTickerNotFound(t *testing.T) {
 	ticker := "XXXX0"
 
 	// THEN
-	stockScraping := scraping.NewStockScraping(config.NewConfig())
+	stockScraping := newStockScraping()
 	_, err := stockScraping.GetStockByTicker(ticker)
 
 	// WHEN
@@ -42,8 +47,11 @@ func TestListStocksByTickersOk(t *testing.T) {
 	tickers := []string{"ITSA3", "BBDC3", "VALE3", "ABEV3", "PETR4", "WEGE3", "IGTA3", "B3SA3"}
 
 	// THEN
-	stockScraping := scraping.NewStockScraping(config.NewConfig())
-	result := stockScraping.ListStocksByTickers(tickers)
+	stockScraping := newStockScraping()
+	result, failures := stockScraping.ListStocksByTickers(tickers)
+	for _, failure := range failures {
+		t.Logf("failed %s: %v", failure.Ticker, failure.Err)
+	}
 
 	// WHEN
 	for _, stock := range result {

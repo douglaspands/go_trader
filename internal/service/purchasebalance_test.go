@@ -1,10 +1,19 @@
 package service_test
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"reflect"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
+	"trader/internal/config"
 	"trader/internal/resource"
+	"trader/internal/scraping"
 	"trader/internal/service"
 )
 
@@ -12,27 +21,27 @@ import (
 
 type mockStockService struct {
 	GetStockByTickerFunc    func(string) *resource.Security
-	ListStocksByTickersFunc func([]string) []*resource.Security
+	ListStocksByTickersFunc func([]string) ([]*resource.Security, []*resource.TickerFailure)
 }
 
 func (m *mockStockService) GetStockByTicker(ticker string) *resource.Security {
 	return m.GetStockByTickerFunc(ticker)
 }
 
-func (m *mockStockService) ListStocksByTickers(tickers []string) []*resource.Security {
+func (m *mockStockService) ListStocksByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 	return m.ListStocksByTickersFunc(tickers)
 }
 
 type mockReitService struct {
 	GetReitByTickerFunc    func(string) *resource.Security
-	ListReitsByTickersFunc func([]string) []*resource.Security
+	ListReitsByTickersFunc func([]string) ([]*resource.Security, []*resource.TickerFailure)
 }
 
 func (m *mockReitService) GetReitByTicker(ticker string) *resource.Security {
 	return m.GetReitByTickerFunc(ticker)
 }
 
-func (m *mockReitService) ListReitsByTickers(tickers []string) []*resource.Security {
+func (m *mockReitService) ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 	return m.ListReitsByTickersFunc(tickers)
 }
 
@@ -237,56 +246,179 @@ func TestPurchaseBalancesBySecurities(t *testing.T) {
 	mockReits := []*resource.Security{{Ticker: "HGLG11", Price: 100}}
 
 	mockStockSvc := &mockStockService{
-		ListStocksByTickersFunc: func(tickers []string) []*resource.Security {
+		ListStocksByTickersFunc: func(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 			if len(tickers) == 1 && tickers[0] == "PETR4" {
-				return mockStocks
+				return mockStocks, nil
 			}
-			return nil
+			return nil, nil
 		},
 	}
 	mockReitSvc := &mockReitService{
-		ListReitsByTickersFunc: func(tickers []string) []*resource.Security {
+		ListReitsByTickersFunc: func(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 			if len(tickers) == 1 && tickers[0] == "HGLG11" {
-				return mockReits
+				return mockReits, nil
 			}
-			return nil
+			return nil, nil
 		},
 	}
 
 	svc := service.NewPurchaseBalanceService(mockStockSvc, mockReitSvc)
 
 	// WHEN
-	result := svc.PurchaseBalancesBySecurities(stockTickers, reitTickers, amountInvested)
+	result, err := svc.PurchaseBalancesBySecurities(stockTickers, reitTickers, amountInvested)
 
 	// THEN
 	// 2 securities. 500 each.
 	// PETR4 (50): 10 shares.
 	// HGLG11 (100): 5 shares.
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
 	if result.TotalCount() != 15 {
 		t.Errorf("Expected 15 total, got %d", result.TotalCount())
 	}
+	if countOf(result, "PETR4") != 10 || countOf(result, "HGLG11") != 5 {
+		t.Errorf("Expected PETR4=10 and HGLG11=5, got PETR4=%d HGLG11=%d", countOf(result, "PETR4"), countOf(result, "HGLG11"))
+	}
 }
 
-func TestPurchaseBalancesBySecurities_TickerWithoutQuote(t *testing.T) {
+func TestPurchaseBalancesBySecurities_StocksBeforeReits(t *testing.T) {
 	// GIVEN
 	mockStockSvc := &mockStockService{
-		ListStocksByTickersFunc: func(tickers []string) []*resource.Security { return nil },
+		ListStocksByTickersFunc: func(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+			return []*resource.Security{{Ticker: "S1", Price: 10}, {Ticker: "S2", Price: 10}}, nil
+		},
 	}
 	mockReitSvc := &mockReitService{
-		ListReitsByTickersFunc: func(tickers []string) []*resource.Security {
-			return []*resource.Security{{Ticker: "HGLG11", Price: 100}}
+		ListReitsByTickersFunc: func(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+			return []*resource.Security{{Ticker: "R1", Price: 10}, {Ticker: "R2", Price: 10}}, nil
 		},
 	}
 	svc := service.NewPurchaseBalanceService(mockStockSvc, mockReitSvc)
 
 	// WHEN
-	result := svc.PurchaseBalancesBySecurities([]string{"XXXX0"}, []string{"HGLG11"}, 1000)
+	result, err := svc.PurchaseBalancesBySecurities([]string{"S1", "S2"}, []string{"R1", "R2"}, 400)
 
 	// THEN
-	if !reflect.DeepEqual(tickersOf(result), []string{"HGLG11"}) {
-		t.Errorf("Expected only HGLG11, got %v", tickersOf(result))
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
 	}
-	if countOf(result, "HGLG11") != 10 {
-		t.Errorf("Expected 10 HGLG11, got %d", countOf(result, "HGLG11"))
+	if !reflect.DeepEqual(tickersOf(result), []string{"S1", "S2", "R1", "R2"}) {
+		t.Errorf("Expected [S1 S2 R1 R2], got %v", tickersOf(result))
+	}
+}
+
+func failingList(securities []*resource.Security, failures ...*resource.TickerFailure) func([]string) ([]*resource.Security, []*resource.TickerFailure) {
+	return func([]string) ([]*resource.Security, []*resource.TickerFailure) { return securities, failures }
+}
+
+func TestPurchaseBalancesBySecurities_TickerWithoutQuote(t *testing.T) {
+	// GIVEN
+	failure := &resource.TickerFailure{Ticker: "XXXX0", Type: resource.STOCK_TYPE, Err: errors.New(`status="404"`)}
+	svc := service.NewPurchaseBalanceService(
+		&mockStockService{ListStocksByTickersFunc: failingList([]*resource.Security{{Ticker: "PETR4", Price: 50}}, failure)},
+		&mockReitService{ListReitsByTickersFunc: failingList(nil)},
+	)
+
+	// WHEN
+	result, err := svc.PurchaseBalancesBySecurities([]string{"PETR4", "XXXX0"}, []string{}, 1000)
+
+	// THEN
+	if result != nil {
+		t.Errorf("Expected no balance, got %v", tickersOf(result))
+	}
+	var quoteErr *resource.QuoteFailuresError
+	if !errors.As(err, &quoteErr) {
+		t.Fatalf("Expected a QuoteFailuresError, got %v", err)
+	}
+	if !reflect.DeepEqual(quoteErr.Failures, []*resource.TickerFailure{failure}) {
+		t.Errorf("Expected the XXXX0 failure, got %v", quoteErr.Failures)
+	}
+	if !strings.Contains(err.Error(), `XXXX0: status="404"`) {
+		t.Errorf("Expected the error to name XXXX0 and its reason, got %q", err.Error())
+	}
+}
+
+func TestPurchaseBalancesBySecurities_FailuresOnBothSides(t *testing.T) {
+	// GIVEN
+	stockFailure := &resource.TickerFailure{Ticker: "XXXX0", Type: resource.STOCK_TYPE, Err: errors.New(`status="404"`)}
+	reitFailure := &resource.TickerFailure{Ticker: "XXXX00", Type: resource.REIT_TYPE, Err: errors.New("ticker not found")}
+	svc := service.NewPurchaseBalanceService(
+		&mockStockService{ListStocksByTickersFunc: failingList(nil, stockFailure)},
+		&mockReitService{ListReitsByTickersFunc: failingList([]*resource.Security{{Ticker: "MXRF11", Price: 10}}, reitFailure)},
+	)
+
+	// WHEN
+	result, err := svc.PurchaseBalancesBySecurities([]string{"XXXX0"}, []string{"MXRF11", "XXXX00"}, 1000)
+
+	// THEN
+	if result != nil {
+		t.Errorf("Expected no balance, got %v", tickersOf(result))
+	}
+	var quoteErr *resource.QuoteFailuresError
+	if !errors.As(err, &quoteErr) {
+		t.Fatalf("Expected a QuoteFailuresError, got %v", err)
+	}
+	if !reflect.DeepEqual(quoteErr.Failures, []*resource.TickerFailure{stockFailure, reitFailure}) {
+		t.Errorf("Expected the stock failure then the REIT failure, got %v", quoteErr.Failures)
+	}
+	for _, expected := range []string{`XXXX0: status="404"`, "XXXX00: ticker not found"} {
+		if !strings.Contains(err.Error(), expected) {
+			t.Errorf("Expected the error to contain %q, got %q", expected, err.Error())
+		}
+	}
+}
+
+// countingTransport answers every request with a page priced at 10 and records the peak number
+// of requests in flight. The first requests wait until 4 are in flight, or for a short timeout.
+type countingTransport struct {
+	current atomic.Int32
+	max     atomic.Int32
+	barrier chan struct{}
+	once    sync.Once
+}
+
+func (c *countingTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	n := c.current.Add(1)
+	defer c.current.Add(-1)
+	for {
+		peak := c.max.Load()
+		if n <= peak || c.max.CompareAndSwap(peak, n) {
+			break
+		}
+	}
+	if n >= 4 {
+		c.once.Do(func() { close(c.barrier) })
+	}
+	select {
+	case <-c.barrier:
+	case <-time.After(2 * time.Second):
+	}
+	page := `<html><body><div title="Valor atual do ativo"><strong>10,00</strong></div></body></html>`
+	return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(page)), Request: r}, nil
+}
+
+func TestPurchaseBalancesBySecurities_SharedRequestLimit(t *testing.T) {
+	// GIVEN real scrapers sharing one fetcher
+	transport := &countingTransport{barrier: make(chan struct{})}
+	cfg := config.NewConfig()
+	fetcher := scraping.NewFetcher(cfg, scraping.WithTransport(transport))
+	svc := service.NewPurchaseBalanceService(
+		service.NewStockService(scraping.NewStockScraping(cfg, fetcher)),
+		service.NewReitService(scraping.NewReitScraping(cfg, fetcher)),
+	)
+
+	// WHEN
+	result, err := svc.PurchaseBalancesBySecurities([]string{"S1", "S2", "S3"}, []string{"R1", "R2", "R3"}, 600)
+
+	// THEN
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if !reflect.DeepEqual(tickersOf(result), []string{"S1", "S2", "S3", "R1", "R2", "R3"}) {
+		t.Errorf("Expected stocks before REITs in input order, got %v", tickersOf(result))
+	}
+	if transport.max.Load() != 4 {
+		t.Errorf("Expected at most and at least 4 requests in flight, got %d", transport.max.Load())
 	}
 }

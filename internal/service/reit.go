@@ -7,7 +7,7 @@ import (
 
 type ReitService interface {
 	GetReitByTicker(ticker string) *resource.Security
-	ListReitsByTickers(tickers []string) []*resource.Security
+	ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure)
 }
 
 type reitService struct {
@@ -22,9 +22,8 @@ func (rs *reitService) GetReitByTicker(ticker string) *resource.Security {
 	return reit
 }
 
-func (rs *reitService) ListReitsByTickers(tickers []string) []*resource.Security {
-	result := rs.reitScraping.ListReitsByTickers(tickers)
-	return result
+func (rs *reitService) ListReitsByTickers(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
+	return rs.reitScraping.ListReitsByTickers(tickers)
 }
 
 func NewReitService(reitScraping scraping.ReitScraping) ReitService {

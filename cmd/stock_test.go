@@ -86,9 +86,9 @@ func TestStockListFound(t *testing.T) {
 	// GIVEN
 	f := newFakes()
 	var received []string
-	f.stock.list = func(tickers []string) []*resource.Security {
+	f.stock.list = func(tickers []string) ([]*resource.Security, []*resource.TickerFailure) {
 		received = tickers
-		return []*resource.Security{newStock("ITSA3", 10.5), newStock("BBDC3", 1234.5)}
+		return []*resource.Security{newStock("ITSA3", 10.5), newStock("BBDC3", 1234.5)}, nil
 	}
 	tr := newTree(f)
 
@@ -207,7 +207,7 @@ func TestStockPurchaseBalanceWithoutAmount(t *testing.T) {
 func TestStockNoColor(t *testing.T) {
 	// GIVEN
 	f := newFakes()
-	f.stock.list = func(tickers []string) []*resource.Security { return []*resource.Security{newStock("ITSA3", 10.5)} }
+	f.stock.list = listing(newStock("ITSA3", 10.5))
 	tr := newTree(f)
 
 	// WHEN
@@ -234,8 +234,8 @@ func TestStockNoColor(t *testing.T) {
 func TestOptionDoesNotLeakToAnotherCommand(t *testing.T) {
 	// GIVEN
 	f := newFakes()
-	f.stock.list = func(tickers []string) []*resource.Security { return []*resource.Security{newStock("ITSA3", 10.5)} }
-	f.reit.list = func(tickers []string) []*resource.Security { return []*resource.Security{newReit("MXRF11", 10)} }
+	f.stock.list = listing(newStock("ITSA3", 10.5))
+	f.reit.list = listing(newReit("MXRF11", 10))
 	tr := newTree(f)
 
 	// WHEN
@@ -259,7 +259,7 @@ func TestOptionDoesNotLeakToAnotherCommand(t *testing.T) {
 func TestStockListFormatting(t *testing.T) {
 	// GIVEN
 	f := newFakes()
-	f.stock.list = func(tickers []string) []*resource.Security { return []*resource.Security{newStock("ITSA3", 10.5)} }
+	f.stock.list = listing(newStock("ITSA3", 10.5))
 	tr := newTree(f)
 
 	// WHEN

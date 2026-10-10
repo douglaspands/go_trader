@@ -10,11 +10,16 @@ on:
         description: 'Tag name that the major tag will point to'
         required: true
 
+# TAG_NAME reaches shell steps only as an environment variable ("$TAG_NAME"), never through
+# ${{ }} interpolation inside a run block.
+# setup-go installs the version of the go directive; GOTOOLCHAIN=auto makes the go command
+# switch to the patched toolchain declared in go.mod, so tests and binaries use it.
 env:
   TAG_NAME: ${{ github.event.inputs.TAG_NAME || github.event.release.tag_name }}
+  GOTOOLCHAIN: auto
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
 
@@ -23,12 +28,15 @@ jobs:
 
     steps:
     - name: Check out repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version-file: go.mod
+
+    - name: Go version
+      run: go version
 
     - name: Vet
       run: go vet ./...
@@ -36,83 +44,117 @@ jobs:
     - name: Unit tests
       run: go test -race ./...
 
+    - name: Vulnerability check
+      run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+
   linux-build:
     needs: test
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
+
     steps:
     - name: Check out repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version-file: go.mod
 
     - name: Generate executable
       run: |
-        GOARCH=amd64 GOOS=linux go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader main.go
+        GOARCH=amd64 GOOS=linux go build -ldflags="-X 'trader/internal/config.version=$TAG_NAME'" -trimpath -o ./trader main.go
 
     - name: Zip the executable
       run: |
-        tar -cjvf ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2 ./trader
+        tar -cjvf "./trader-$TAG_NAME-linux-x86_64.tar.bz2" ./trader
 
     - name: Upload Release Asset
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release upload "${{ env.TAG_NAME }}" ./trader-${{ env.TAG_NAME }}-linux-x86_64.tar.bz2 --clobber
+        gh release upload "$TAG_NAME" "./trader-$TAG_NAME-linux-x86_64.tar.bz2" --clobber
 
   windows-build:
     needs: test
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
+
     steps:
     - name: Check out repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version-file: go.mod
 
     - name: Generate executable
       run: |
-        GOARCH=amd64 GOOS=windows go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader.exe main.go
+        GOARCH=amd64 GOOS=windows go build -ldflags="-X 'trader/internal/config.version=$TAG_NAME'" -trimpath -o ./trader.exe main.go
 
     - name: Zip the executable
       run: |
-        zip -r ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip ./trader.exe
+        zip -r "./trader-$TAG_NAME-windows-x86_64.zip" ./trader.exe
 
     - name: Upload Release Asset
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release upload "${{ env.TAG_NAME }}" ./trader-${{ env.TAG_NAME }}-windows-x86_64.zip --clobber
+        gh release upload "$TAG_NAME" "./trader-$TAG_NAME-windows-x86_64.zip" --clobber
 
   darwin-build:
     needs: test
     runs-on: ubuntu-latest
-    
+    permissions:
+      contents: write
+
     steps:
     - name: Check out repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
       with:
         go-version-file: go.mod
 
     - name: Generate executable
       run: |
-        GOARCH=arm64 GOOS=darwin go build -ldflags="-X 'trader/internal/config.version=${{ env.TAG_NAME }}'" -trimpath -o ./trader main.go
+        GOARCH=arm64 GOOS=darwin go build -ldflags="-X 'trader/internal/config.version=$TAG_NAME'" -trimpath -o ./trader main.go
 
     - name: Zip the executable
       run: |
-        tar -cjvf ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2 ./trader
+        tar -cjvf "./trader-$TAG_NAME-darwin-arm64.tar.bz2" ./trader
 
     - name: Upload Release Asset
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release upload "${{ env.TAG_NAME }}" ./trader-${{ env.TAG_NAME }}-darwin-arm64.tar.bz2 --clobber
+        gh release upload "$TAG_NAME" "./trader-$TAG_NAME-darwin-arm64.tar.bz2" --clobber
+
+  checksums:
+    needs: [linux-build, windows-build, darwin-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download release assets
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release download "$TAG_NAME" --repo "$GITHUB_REPOSITORY" --pattern "trader-$TAG_NAME-*" --dir ./assets
+
+    - name: Write SHA256SUMS
+      working-directory: ./assets
+      run: |
+        sha256sum trader-* > SHA256SUMS
+        cat SHA256SUMS
+
+    - name: Upload SHA256SUMS
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload "$TAG_NAME" ./assets/SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber

@@ -37,8 +37,8 @@ func (sc *stockCommand) getStockByTickerCmd(cmd *cobra.Command, args []string) e
 	t := common.NewTableWriter(sc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"FIELD", "VALUE"})
 	t.AppendRow(table.Row{"Ticker", stock.Ticker})
-	t.AppendRow(table.Row{"Name", stock.Name})
-	t.AppendRow(table.Row{"Document", stock.Document})
+	t.AppendRow(table.Row{"Name", cell(stock.Name, sc.csv)})
+	t.AppendRow(table.Row{"Document", cell(stock.Document, sc.csv)})
 	t.AppendRow(table.Row{"Currency", stock.Currency.String()})
 	t.AppendRow(table.Row{"Price", tools.TableRowValue(stock.Price)})
 	t.AppendRow(table.Row{"CapturedAt", tools.TableRowValue(stock.CapturedAt)})
@@ -51,7 +51,7 @@ func (sc *stockCommand) getStockByTickerCmd(cmd *cobra.Command, args []string) e
 
 func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string) error {
 	tickers := args
-	stocks := sc.stockService.ListStocksByTickers(tickers)
+	stocks, failures := sc.stockService.ListStocksByTickers(tickers)
 	if len(stocks) == 0 {
 		cmd.SilenceUsage = true
 		return errors.New("tickers not found!")
@@ -59,7 +59,7 @@ func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string
 	t := common.NewTableWriter(sc.noColor, cmd.OutOrStdout())
 	t.AppendHeader(table.Row{"TICKER", "NAME", "DOCUMENT", "PRICE", "CURRENCY", "CAPTURED AT"})
 	for _, stock := range stocks {
-		t.AppendRow(table.Row{stock.Ticker, stock.Name, stock.Document, tools.TableRowValue(stock.Price), stock.Currency.String(), tools.TableRowValue(stock.CapturedAt)})
+		t.AppendRow(table.Row{stock.Ticker, cell(stock.Name, sc.csv), cell(stock.Document, sc.csv), tools.TableRowValue(stock.Price), stock.Currency.String(), tools.TableRowValue(stock.CapturedAt)})
 	}
 	t.SetColumnConfigs([]table.ColumnConfig{
 		{
@@ -75,12 +75,20 @@ func (sc *stockCommand) listStocksByTickersCmd(cmd *cobra.Command, args []string
 	})
 	t.SetIndexColumn(1)
 	render(t, sc.csv)
+	printWarnings(cmd.ErrOrStderr(), failures)
 	return nil
 }
 
 func (sc *stockCommand) purchaseBalanceByTickersCmd(cmd *cobra.Command, args []string) error {
+	if err := validateAmount(sc.flagAmount); err != nil {
+		return err
+	}
 	tickers := args
-	purchaseBalance := sc.purchaseBalanceService.PurchaseBalancesBySecurities(tickers, []string{}, sc.flagAmount)
+	purchaseBalance, err := sc.purchaseBalanceService.PurchaseBalancesBySecurities(tickers, []string{}, sc.flagAmount)
+	if err != nil {
+		cmd.SilenceUsage = true
+		return cleanError(err)
+	}
 	if len(purchaseBalance.SecuritiesBalance) == 0 {
 		cmd.SilenceUsage = true
 		return errors.New("tickers not found!")

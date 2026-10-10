@@ -2,6 +2,8 @@ module trader
 
 go 1.26.0
 
+toolchain go1.26.9
+
 require (
 	github.com/antchfx/htmlquery v1.3.7
 	github.com/jedib0t/go-pretty/v6 v6.8.3
