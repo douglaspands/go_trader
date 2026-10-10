@@ -119,8 +119,8 @@ To extend a list: edit `_g_rules` (commands), `_g_secret_path` (secrets) or `_g_
 `case_ TOOL INPUT allow|ask|deny`) and run the suite. Keep the equivalent rules in
 `.claude/settings.json` and `.agents/agy-settings.example.json`.
 
-Scenario coverage: the suite reads the scenario names from the specification (the change's delta
-spec, or `openspec/specs/agent-boundary/spec.md` after archive; override with `HARNESS_SPEC_FILE`).
+Scenario coverage: the suite reads the scenario names from `openspec/specs/agent-boundary/spec.md`
+plus the delta spec of any active change (`HARNESS_SPEC_FILE` replaces both).
 It fails with `FAIL [coverage] missing scenario: ...` when a scenario has no case and with
 `unknown scenario: ...` when a case names a scenario that does not exist, so a new scenario
 cannot be added without a test that proves it.
@@ -222,6 +222,40 @@ the pull request, not in this document.
 
 If a rule alone is not enough, the hook already covers the case with its own `ask`; adjust it and
 record the result.
+
+### Claude Code: test copy
+
+A headless or untrusted run ignores the repository's `allow` rules, so use an interactive session in
+a disposable copy that you trust once. Run these yourself, in your own terminal:
+
+```sh
+git clone --local "$PWD" ../trader-harness-test   # committed state of the current branch
+cd ../trader-harness-test
+claude --debug                                    # accept the trust dialog for this directory
+```
+
+1. In the session, run `/permissions` and check that the rules from `.claude/settings.json` are listed.
+2. Ask the agent to run `go vet ./...`; it must run without a prompt (the `allow` rules apply, so
+   the copy is trusted).
+3. For each checklist row, give the agent the prompt in "How to verify" and note the outcome
+   (denied, asked or applied) and the matching line of `.claude/logs/guard.log` in the copy.
+4. Edit/Write under the read key: ask the agent to create `config/.env.test` with Edit and with Write.
+5. Hook `ask` over an `allow` rule: add `Bash(git push *)` to `allow` in the copy's
+   `.claude/settings.json`, restart the session and ask for a non-forced `git push`.
+
+Delete the copy when done. Nothing here touches the working repository.
+
+### Antigravity: procedure
+
+Install nothing in `~/.gemini` unless you do it yourself with the merge steps above. In the
+repository (or the test copy), run `agy` and:
+
+1. Run `/hooks` and note the hook listed, its `matcher` and the resolved command path.
+2. Ask the agent to run `git status` (`run_command`), to read `README.md` (`view_file`) and to
+   create `config/.env.test` (`write_to_file`); note which are denied, asked or allowed.
+3. To see the tool names and `args` fields the hook receives, add `tee -a "$TMPDIR/agy-hook-input.json"`
+   temporarily in front of the adapter in a copy of `.agents/hooks.json` (test copy only) and read the file.
+4. Note whether a call the hook has no objection to runs normally (empty output = "no objection").
 
 ## Reverting
 
