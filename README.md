@@ -198,3 +198,19 @@ make test/vuln
 ```
 
 Os testes de scraping usam HTML de exemplo em `internal/scraping/testdata/`, servido localmente. Os testes de integração (build tag `integration`) servem para detectar mudanças no layout do site.
+
+### Desenvolvimento com agentes
+
+O repositório traz limites para agentes de código (Claude Code e Antigravity `agy`) que rodam direto no host: dentro do repositório o agente trabalha sem pedir permissão; sair dele, executar comando opaco, `git push` e editar a própria configuração pedem confirmação; segredos (`.env*`, chaves, credenciais do usuário) e comandos destrutivos são negados. O agente lê e escreve arquivos só pelas ferramentas próprias (Read, Grep, Glob, Edit e Write): `cat`, `sed`, `tee`, redirecionamentos, `grep`, `ls` e similares, além de interpretadores como `python` e `node`, são negados. Cada chamada de shell executa um único comando (sem `&&`, `;` nem `|`).
+
+Requisitos: `bash` e `jq`.
+
+```sh
+# Suíte de conformidade do guardião: só sob demanda, não roda junto com os testes nem a cada PR.
+# Ela prova que cada cenário de segurança e de autonomia da spec funciona.
+scripts/harness-test.sh
+```
+
+As instruções para os agentes ficam em [AGENTS.md](AGENTS.md) (comuns a qualquer agente), [CLAUDE.md](CLAUDE.md) (só o que é específico do Claude Code, importa o `AGENTS.md`) e [GEMINI.md](GEMINI.md) (só o que é específico do Antigravity, que lê o `AGENTS.md` sozinho). Editar esses arquivos pede confirmação. Convenção de idioma: este `README.md` é escrito em português do Brasil; todo o resto (documentação, artefatos do OpenSpec, instruções dos agentes, comentários e mensagens dos scripts) é escrito em inglês.
+
+Detalhes, modelo de ameaça, limites e checklist manual: [docs/harness/local-guardrails.md](docs/harness/local-guardrails.md). O Antigravity só tem configuração de permissões global; o modelo está em [.agents/agy-settings.example.json](.agents/agy-settings.example.json) e o passo a passo para instalá-lo está na documentação.

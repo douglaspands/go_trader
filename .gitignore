@@ -51,3 +51,7 @@ go.work
 /trader
 /trader.exe
 /trader-*
+
+# Agents: guard log and local configuration
+/.claude/logs/
+/.claude/settings.local.json
