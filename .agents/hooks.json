@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "./.agents/hooks/guard-agy.sh",
+            "command": "if [ -x ./hooks/guard-agy.sh ]; then ./hooks/guard-agy.sh; else ./.agents/hooks/guard-agy.sh; fi",
             "timeout": 10
           }
         ]

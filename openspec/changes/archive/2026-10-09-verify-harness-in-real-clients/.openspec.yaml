@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-09
+goal: Close the manual verification tasks 3.3 and 4.2 left open by
+  local-harness-guardrails

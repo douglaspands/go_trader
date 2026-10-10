@@ -12,6 +12,7 @@
 # Variables: HARNESS_INSTRUCTIONS_DIR (where AGENTS.md, CLAUDE.md and GEMINI.md live, default the root)
 #            HARNESS_MAX_MS (limit for the average time per call, default 100)
 #            HARNESS_CONFIG_FILES (JSON files to validate with `jq empty`, space-separated)
+#            HARNESS_CHECKLIST_DOC (document holding the manual checklist, default docs/harness/local-guardrails.md)
 
 # The cases use literal ~, $HOME and $(...) on purpose: they are the text the agent would send.
 # shellcheck disable=SC2016,SC2088
@@ -70,6 +71,7 @@ R_SECRET="Secrets are never read"
 R_DESTR="Destructive commands are denied"
 R_EXT="External and irreversible actions require confirmation"
 R_PARITY="Parity between Claude Code and Antigravity"
+R_REAL="Verification in the real clients"
 
 # ---------------------------------------------------------------- autonomy
 scenario "$R_AUTO / Editing a project file"
@@ -531,6 +533,30 @@ check_on_demand() {
   done < <(grep 'harness-test' "$INSTR_DIR/AGENTS.md" 2>/dev/null)
 }
 
+# The manual checklist in docs/harness/local-guardrails.md has a row, with a "how to verify" cell,
+# for each Claude Code item and each Antigravity item that the real-client verification records.
+check_checklist() {
+  local doc=${HARNESS_CHECKLIST_DOC:-$ROOT/docs/harness/local-guardrails.md} section item
+  local claude_items=(
+    'The hook runs and denies' 'Shell reads, writes and chains are denied' 'Interpreters are denied'
+    'Edit/Write under `blockReadsOutsideWorkingDirectories`' 'Read outside the repository in `acceptEdits`'
+    'A hook `ask` over an `allow` rule' '`cp` with an external target' '`grep` with a quoted path under `deny`'
+    '`ask` of `Edit(/.claude/**)` in `acceptEdits`' 'Instruction files are loaded'
+  )
+  local agy_items=(
+    'Antigravity: tool names and `args` fields'
+    'Antigravity: the `command` path in `hooks.json` and empty output meaning "no objection"'
+  )
+  section=$(sed -n '/^## Manual checklist/,/^## Reverting/p' "$doc" 2>/dev/null)
+  for item in "${claude_items[@]}" "${agy_items[@]}"; do
+    TOTAL=$((TOTAL + 1))
+    if ! grep -F "| $item | " <<<"$section" | grep -qE '\| [^|]*[^| ][^|]* \|$'; then
+      FAILURES=$((FAILURES + 1))
+      echo "FAIL [checklist] row missing or without a procedure in docs/harness/local-guardrails.md: $item"
+    fi
+  done
+}
+
 # spec_scenarios SPEC → one "REQUIREMENT / SCENARIO" per line
 spec_scenarios() {
   local line req
@@ -542,38 +568,42 @@ spec_scenarios() {
   done <"$1"
 }
 
-# coverage_report SPEC → lines "missing: X" for scenarios without a case and "unknown: X" for
-# case tags that name no scenario of the specification
+# coverage_report SPEC... → lines "missing: X" for scenarios without a case and "unknown: X" for
+# case tags that name no scenario of the specifications
 coverage_report() {
-  local sc k
+  local sc k f
   declare -A known=()
-  while IFS= read -r sc; do
-    known["$sc"]=1
-    [[ -n ${COVERED["$sc"]-} ]] || echo "missing: $sc"
-  done < <(spec_scenarios "$1")
+  for f in "$@"; do
+    while IFS= read -r sc; do
+      known["$sc"]=1
+      [[ -n ${COVERED["$sc"]-} ]] || echo "missing: $sc"
+    done < <(spec_scenarios "$f")
+  done
   for k in "${!COVERED[@]}"; do
     [[ $k == - || -n ${known["$k"]-} ]] || echo "unknown: $k"
   done
 }
 
-# Every scenario of the specification has a case, and every case names a real scenario.
+# Every scenario of the specification has a case, and every case names a real scenario. While a
+# change is active, its delta spec counts together with the main spec; HARNESS_SPEC_FILE replaces both.
 check_coverage() {
-  local spec="" c out line copy
-  for c in ${HARNESS_SPEC_FILE:-} \
-    "$ROOT/openspec/changes/local-harness-guardrails/specs/agent-boundary/spec.md" \
-    "$ROOT/openspec/specs/agent-boundary/spec.md"; do
-    if [[ -f $c ]]; then
-      spec=$c
-      break
-    fi
-  done
+  local specs=() spec c out line copy
+  if [[ -n ${HARNESS_SPEC_FILE:-} ]]; then
+    [[ -f $HARNESS_SPEC_FILE ]] && specs=("$HARNESS_SPEC_FILE")
+  else
+    for c in "$ROOT/openspec/specs/agent-boundary/spec.md" \
+      "$ROOT"/openspec/changes/*/specs/agent-boundary/spec.md; do
+      [[ -f $c ]] && specs+=("$c")
+    done
+  fi
   TOTAL=$((TOTAL + 1))
-  if [[ -z $spec ]]; then
+  if ((${#specs[@]} == 0)); then
     FAILURES=$((FAILURES + 1))
     echo "FAIL [coverage] specification file not found"
     return
   fi
-  out=$(coverage_report "$spec")
+  spec=${specs[0]}
+  out=$(coverage_report "${specs[@]}")
   while IFS= read -r line; do
     [[ -n $line ]] || continue
     FAILURES=$((FAILURES + 1))
@@ -602,6 +632,9 @@ validate_json
 check_language
 covers "Language convention / New document"
 covers "Language convention / README"
+check_checklist
+covers "$R_REAL / Claude Code checklist"
+covers "$R_REAL / Antigravity checklist"
 check_on_demand
 covers "Automatic verification of the rules / On demand only"
 covers "Automatic verification of the rules / Scenario without a case"
